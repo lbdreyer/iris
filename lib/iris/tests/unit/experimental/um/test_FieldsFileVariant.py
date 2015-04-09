@@ -32,7 +32,8 @@ import tempfile
 from contextlib import contextmanager
 import numpy as np
 
-from iris.experimental.um import FieldsFileVariant, cutout, Field3
+from iris.experimental.um import FieldsFileVariant, cutout, Field3,\
+    FixedLengthHeader
 
 
 class Test___init__(tests.IrisTest):
@@ -103,13 +104,6 @@ class Test_mode(tests.IrisTest):
 
 
 class Test_cutout(tests.IrisTest):
-    @contextmanager
-    def temp_ff(self):
-        with self.temp_filename() as temp_path:
-            ffv = FieldsFileVariant(temp_path,
-                                    mode=FieldsFileVariant.CREATE_MODE)
-            yield ffv
-
     def simple_p_grid(self, ffv, nx, ny):
         ffv.fixed_length_header.horiz_grid_type = 0
         ffv.fixed_length_header.sub_model = 1
@@ -134,78 +128,112 @@ class Test_cutout(tests.IrisTest):
         field.lbnpt = nx
         field.lbrow = ny
         field.lbcode = 1
+        field.lbext = 0
         ffv.fields.append(field)
 
+    def setUp(self):
+        # Create a temporary test directory.
+        self.temp_dirpath = tempfile.mkdtemp()
+        self.input_ffv_path = os.path.join(self.temp_dirpath, 'in_ff')
+        self.output_ffv_path = os.path.join(self.temp_dirpath, 'out_ff')
+
+        # Create a test input file (and leave this *open*).
+        self.input_ffv = FieldsFileVariant(self.input_ffv_path,
+                                           mode=FieldsFileVariant.CREATE_MODE)
+
+        # Define a standard grid on the input file.
+        self.simple_p_grid(self.input_ffv, 10, 12)
+
+    def tearDown(self):
+        # Close the test input file and delete the whole test directory.
+        # NOTE: any created ffvs already got closed, as they left scope on exit
+        # from the test routine.
+        self.input_ffv.close()
+        shutil.rmtree(self.temp_dirpath)
+
     def test_fixed_length_header(self):
-        with self.temp_ff() as ffv:
-            with self.temp_filename() as temp_path:
-                self.simple_p_grid(ffv, 10, 12)
-                ffv_dest = cutout(ffv, temp_path, [2, 1, 4, 5])
-                self.assertEqual(ffv_dest.fixed_length_header.sub_model, 1)
+        ffv_dest = cutout(self.input_ffv, self.output_ffv_path, [2, 1, 4, 5])
+        self.assertEqual(ffv_dest.fixed_length_header.sub_model, 1)
 
     def test_horiz_grid_type(self):
-        with self.temp_ff() as ffv:
-            with self.temp_filename() as temp_path:
-                self.simple_p_grid(ffv, 10, 12)
-                ffv_dest = cutout(ffv, temp_path, [2, 1, 4, 5])
-                self.assertEqual(ffv_dest.fixed_length_header.horiz_grid_type,
-                                 3)
+        ffv_dest = cutout(self.input_ffv, self.output_ffv_path, [2, 1, 4, 5])
+        self.assertEqual(ffv_dest.fixed_length_header.horiz_grid_type, 3)
 
     def test_integer_constants(self):
-        with self.temp_ff() as ffv:
-            with self.temp_filename() as temp_path:
-                self.simple_p_grid(ffv, 10, 12)
-                ffv_dest = cutout(ffv, temp_path, [2, 1, 4, 5])
-                self.assertEqual(ffv_dest.integer_constants[5], 4)
-                self.assertEqual(ffv_dest.integer_constants[6], 5)
+        ffv_dest = cutout(self.input_ffv, self.output_ffv_path, [2, 1, 4, 5])
+        self.assertEqual(ffv_dest.integer_constants[5], 4)
+        self.assertEqual(ffv_dest.integer_constants[6], 5)
 
     def test_real_constants(self):
-        with self.temp_ff() as ffv:
-            with self.temp_filename() as temp_path:
-                self.simple_p_grid(ffv, 10, 12)
-                ffv_dest = cutout(ffv, temp_path, [2, 1, 4, 5])
-                self.assertEqual(ffv_dest.real_constants[2], 10)
-                self.assertEqual(ffv_dest.real_constants[3], 10)
+        ffv_dest = cutout(self.input_ffv, self.output_ffv_path, [2, 1, 4, 5])
+        self.assertEqual(ffv_dest.real_constants[2], 10)
+        self.assertEqual(ffv_dest.real_constants[3], 10)
 
     def test_lbhem(self):
-        with self.temp_ff() as ffv:
-            with self.temp_filename() as temp_path:
-                self.simple_p_grid(ffv, 10, 12)
-                ffv_dest = cutout(ffv, temp_path, [2, 1, 4, 5])
-                self.assertEqual(ffv_dest.fields[0].lbhem, 3)
+        ffv_dest = cutout(self.input_ffv, self.output_ffv_path, [2, 1, 4, 5])
+        self.assertEqual(ffv_dest.fields[0].lbhem, 3)
 
     def test_lbnpt_lbrow(self):
-        with self.temp_ff() as ffv:
-            with self.temp_filename() as temp_path:
-                self.simple_p_grid(ffv, 10, 12)
-                ffv_dest = cutout(ffv, temp_path, [2, 1, 4, 5])
-                self.assertEqual(ffv_dest.fields[0].lbnpt, 4)
-                self.assertEqual(ffv_dest.fields[0].lbrow, 5)
+        ffv_dest = cutout(self.input_ffv, self.output_ffv_path, [2, 1, 4, 5])
+        self.assertEqual(ffv_dest.fields[0].lbnpt, 4)
+        self.assertEqual(ffv_dest.fields[0].lbrow, 5)
 
     def test_bzx_bzy(self):
-        with self.temp_ff() as ffv:
-            with self.temp_filename() as temp_path:
-                self.simple_p_grid(ffv, 10, 12)
-                ffv_dest = cutout(ffv, temp_path, [2, 1, 4, 5])
-                self.assertEqual(ffv_dest.fields[0].bzx, 10)
-                self.assertEqual(ffv_dest.fields[0].bzy, 10)
+        ffv_dest = cutout(self.input_ffv, self.output_ffv_path, [2, 1, 4, 5])
+        self.assertEqual(ffv_dest.fields[0].bzx, 10)
+        self.assertEqual(ffv_dest.fields[0].bzy, 10)
 
-    def test_too_many_nx_ny(self):
-        with self.temp_ff() as ffv:
-            with self.temp_filename() as temp_path:
-                self.simple_p_grid(ffv, 10, 12)
-                ffv_dest = cutout(ffv, temp_path, [5, 5, 100, 100])
-                self.assertEqual(ffv_dest.integer_constants[5], 5)
-                self.assertEqual(ffv_dest.integer_constants[6], 7)
-                # Add test to check warning is raised
+    def test_fail_too_many_nx_ny(self):
+        msg_re = 'cutout .* outside the dimensions of the grid'
+        with self.assertRaisesRegexp(ValueError, msg_re):
+            ffv_dest = cutout(self.input_ffv, self.output_ffv_path,
+                              [5, 5, 100, 100])
 
     def test_get_data(self):
-        with self.temp_ff() as ffv:
-            with self.temp_filename() as temp_path:
-                self.simple_p_grid(ffv, 10, 12)
-                ffv_dest = cutout(ffv, temp_path, [1, 0, 2, 1])
-                array = np.array([[1., 2.]])
-                self.assertArrayEqual(ffv_dest.fields[0].get_data(), array)
+        ffv_dest = cutout(self.input_ffv, self.output_ffv_path, [1, 0, 2, 1])
+        array = np.array([[1., 2.]])
+        self.assertArrayEqual(ffv_dest.fields[0].get_data(), array)
+
+    def test_fail_fixed_dx_0(self):
+        self.input_ffv.real_constants[0] = 0.0
+        msg_re = 'Source grid in header is not regular'
+        with self.assertRaisesRegexp(ValueError, msg_re):
+            ffv_dest = cutout(self.input_ffv, self.output_ffv_path,
+                              [2, 1, 4, 5])
+
+    def test_fail_fixed_dy_imdi(self):
+        self.input_ffv.real_constants[0] = FixedLengthHeader.IMDI
+        msg_re = 'Source grid in header is not regular'
+        with self.assertRaisesRegexp(ValueError, msg_re):
+            ffv_dest = cutout(self.input_ffv, self.output_ffv_path,
+                              [2, 1, 4, 5])
+
+    def test_fail_field_dx_0(self):
+        self.input_ffv.fields[0].bdx = 0.0
+        msg_re = 'Source grid in field#0 is not regular'
+        with self.assertRaisesRegexp(ValueError, msg_re):
+            ffv_dest = cutout(self.input_ffv, self.output_ffv_path,
+                              [2, 1, 4, 5])
+
+    def test_fail_field2_dy_mdi(self):
+        field1 = self.input_ffv.fields[0]
+        field2 = Field3(field1.int_headers.copy(),
+                        field1.real_headers.copy(),
+                        field1.get_data())
+        self.input_ffv.fields = [field1, field2]
+        field2.bmdi = 123.45
+        field2.bdy = 123.45
+        msg_re = 'Source grid in field#1 is not regular'
+        with self.assertRaisesRegexp(ValueError, msg_re):
+            ffv_dest = cutout(self.input_ffv, self.output_ffv_path,
+                              [2, 1, 4, 5])
+
+    def test_fail_field_extension_data(self):
+        self.input_ffv.fields[0].lbext = 1
+        msg_re = 'field#0 has extension data'
+        with self.assertRaisesRegexp(ValueError, msg_re):
+            ffv_dest = cutout(self.input_ffv, self.output_ffv_path,
+                              [2, 1, 4, 5])
 
 
 if __name__ == '__main__':
