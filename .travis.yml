@@ -126,7 +126,7 @@ install:
 
 script:
   - if [[ $TEST_TARGET == 'default' ]]; then
-      python -m iris.tests.runner --default-tests --system-tests --coding-tests --print-failed-images --num-processors=3;
+      coverage run -m iris.tests.runner --default-tests --system-tests --coding-tests --print-failed-images --num-processors=3;
     fi
   - if [[ $TEST_TARGET == 'example' ]]; then
       python -m iris.tests.runner --example-tests --print-failed-images --num-processors=3;
@@ -165,3 +165,6 @@ script:
       cd $INSTALL_DIR/docs/iris/src/whatsnew;
       python aggregate_directory.py --checkonly;
     fi
+
+after_success:
+  - coveralls -v
