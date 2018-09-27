@@ -7,7 +7,7 @@
 
 language: python
 python:
-  - 2.7
+#  - 2.7
   - 3.6
 sudo: false
 
@@ -115,7 +115,7 @@ install:
     echo "[System]" >> $SITE_CFG;
     echo "udunits2_path = $PREFIX/lib/libudunits2.so" >> $SITE_CFG;
 
-  - python setup.py --quiet install
+  - pip install -e .
 
   # JUST FOR NOW : Install latest version of iris-grib.
   # TODO : remove when iris doesn't do an integration test requiring iris-grib.
@@ -126,7 +126,10 @@ install:
 
 script:
   - if [[ $TEST_TARGET == 'default' ]]; then
-      coverage run -m iris.tests.runner --default-tests --system-tests --coding-tests --print-failed-images --num-processors=3;
+      if [[ "$TEST_MINIMAL" != true ]]; then
+        coverage run -m iris.tests.runner --default-tests --system-tests --coding-tests --print-failed-images --num-processors=3;
+      else;
+        python -m iris.tests.runner --default-tests --system-tests --coding-tests --print-failed-images --num-processors=3;
     fi
   - if [[ $TEST_TARGET == 'example' ]]; then
       python -m iris.tests.runner --example-tests --print-failed-images --num-processors=3;
