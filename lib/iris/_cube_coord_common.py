@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2010 - 2018, Met Office
+# (C) British Crown Copyright 2010 - 2019, Met Office
 #
 # This file is part of Iris.
 #
@@ -122,10 +122,28 @@ class CFVariableMixin(object):
 
     @standard_name.setter
     def standard_name(self, name):
-        if name is None or name in iris.std_names.STD_NAMES:
+        if name is None:
             self._standard_name = name
         else:
-            raise ValueError('%r is not a valid standard_name' % name)
+            # Standard names are optionally followed by a standard name
+            # modifier, separated by one or more blank spaces
+            name_parts = name.split(' ')
+            std_name, std_name_extension = name_parts[0], name_parts[1:]
+
+            error_msg = '{!r} is not a valid standard_name'.format(name)
+
+            if std_name in iris.std_names.STD_NAMES:
+                if std_name_extension:
+                    standard_name_modifier = std_name_extension[-1]
+                    # Check only blank spaces before standard_name_modifier
+                    if any(item for item in std_name_extension[:-1]):
+                        raise ValueError(error_msg)
+                    if standard_name_modifier not in \
+                            iris.fileformats.cf.STD_NAME_MODIFIERS_UNITS:
+                        raise ValueError(error_msg)
+                self._standard_name = name
+            else:
+                raise ValueError(error_msg)
 
     @property
     def units(self):
