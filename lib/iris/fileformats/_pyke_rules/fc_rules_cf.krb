@@ -1073,9 +1073,9 @@ fc_extras
     from iris.fileformats.netcdf import _get_cf_var_data, parse_cell_methods, UnknownCellMethodWarning
     import iris.fileformats.pp as pp
     import iris.exceptions
-    import iris.std_names
     import iris.util
     from iris._lazy_data import as_lazy_data
+    from iris._cube_coord_common import validate_standard_name
 
 
     #
@@ -1186,13 +1186,16 @@ fc_extras
         cube.long_name = long_name
 
         if standard_name is not None:
-            if standard_name in iris.std_names.STD_NAMES:
-                cube.standard_name = standard_name
-            else:
-                if cube.long_name is not None:
-                    cube.attributes['invalid_standard_name'] = standard_name
+            try:
+                cube.standard_name = validate_standard_name(standard_name)
+            except ValueError as e:
+                if str(e) != '{!r} is not a valid standard_name'.format(name):
+                    raise:
                 else:
-                    cube.long_name = standard_name
+                    if cube.long_name is not None:
+                        cube.attributes['invalid_standard_name'] = standard_name
+                    else:
+                        cube.long_name = standard_name
 
         # Determine the cube units.
         attr_units = get_attr_units(cf_var, cube.attributes)
@@ -1318,6 +1321,7 @@ fc_extras
             ellipsoid)
 
         return cs
+
 
     ################################################################################
     def build_lambert_conformal_coordinate_system(engine, cf_grid_var):
@@ -1523,13 +1527,18 @@ fc_extras
         cf_name = str(cf_coord_var.cf_name)
 
         if standard_name is not None:
-            if standard_name not in iris.std_names.STD_NAMES:
-                if long_name is not None:
-                    attributes['invalid_standard_name'] = standard_name
-                    if coord_name is not None:
-                        standard_name = coord_name
-                    else:
-                        standard_name = None
+            try:
+                standard_name = validate_standard_name(standard_name)
+            except ValueError as e:
+                if str(e) != '{!r} is not a valid standard_name'.format(name):
+                    raise
+                else:
+                    if long_name is not None:
+                        attributes['invalid_standard_name'] = standard_name
+                        if coord_name is not None:
+                            standard_name = coord_name
+                        else:
+                            standard_name = None
                 else:
                     if coord_name is not None:
                         attributes['invalid_standard_name'] = standard_name
@@ -1543,8 +1552,11 @@ fc_extras
 
         # Last attempt to set the standard name to something meaningful.
         if standard_name is None:
-            if cf_name in iris.std_names.STD_NAMES:
-                standard_name = cf_name
+            try:
+                standard_name = validate_standard_name(cf_name)
+            except ValueError as e:
+                if str(e) != '{!r} is not a valid standard_name'.format(name):
+                    raise
 
         return (standard_name, long_name, cf_name)
 

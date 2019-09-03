@@ -28,6 +28,28 @@ import cf_units
 import iris.std_names
 
 
+def validate_standard_name(name):
+    # Standard names are optionally followed by a standard name
+    # modifier, separated by one or more blank spaces
+    name_parts = name.split(' ')
+    std_name, std_name_extension = name_parts[0], name_parts[1:]
+
+    error_msg = '{!r} is not a valid standard_name'.format(name)
+
+    if std_name in iris.std_names.STD_NAMES:
+        if std_name_extension:
+            standard_name_modifier = std_name_extension[-1]
+            # Check only blank spaces before standard_name_modifier
+            if any(item for item in std_name_extension[:-1]):
+                raise ValueError(error_msg)
+            if standard_name_modifier not in \
+                    iris.fileformats.cf.STD_NAME_MODIFIERS_UNITS:
+                raise ValueError(error_msg)
+        return name
+    else:
+        raise ValueError(error_msg)
+
+
 class LimitedAttributeDict(dict):
     _forbidden_keys = ('standard_name', 'long_name', 'units', 'bounds', 'axis',
                        'calendar', 'leap_month', 'leap_year', 'month_lengths',
@@ -125,25 +147,7 @@ class CFVariableMixin(object):
         if name is None:
             self._standard_name = name
         else:
-            # Standard names are optionally followed by a standard name
-            # modifier, separated by one or more blank spaces
-            name_parts = name.split(' ')
-            std_name, std_name_extension = name_parts[0], name_parts[1:]
-
-            error_msg = '{!r} is not a valid standard_name'.format(name)
-
-            if std_name in iris.std_names.STD_NAMES:
-                if std_name_extension:
-                    standard_name_modifier = std_name_extension[-1]
-                    # Check only blank spaces before standard_name_modifier
-                    if any(item for item in std_name_extension[:-1]):
-                        raise ValueError(error_msg)
-                    if standard_name_modifier not in \
-                            iris.fileformats.cf.STD_NAME_MODIFIERS_UNITS:
-                        raise ValueError(error_msg)
-                self._standard_name = name
-            else:
-                raise ValueError(error_msg)
+            self._standard_name = validate_standard_name(name)
 
     @property
     def units(self):
