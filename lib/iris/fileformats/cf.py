@@ -75,7 +75,7 @@ reference_terms = dict(atmosphere_sigma_coordinate=['ps'],
                        ocean_s_coordinate_g2=['eta', 'depth'])
 
 # Supported standard name modifiers and their associated units. Ref: [CF]
-# Appendix E.
+# Appendix C.
 STD_NAME_MODIFIERS_UNITS = {'detection_minimum': 'u',
                             'number_of_observations': '1',
                             'standard_error': 'u',
