@@ -84,5 +84,37 @@ class TestInvalidGlobalAttributes(tests.IrisTest):
         self.assertEqual(engine.cube.attributes, expected)
 
 
+class TestInvalidGlobalAttributes(tests.IrisTest):
+    @staticmethod
+    def _make_engine(global_attributes=None):
+        if global_attributes is None:
+            global_attributes = {}
+
+        cf_group = mock.Mock(global_attributes=global_attributes)
+
+        cf_var = mock.Mock(
+            cf_name='wibble',
+            standard_name=None,
+            long_name=None,
+            units='m',
+            dtype=np.float64,
+            cell_methods=None,
+            cf_group=cf_group)
+
+        engine = mock.Mock(
+            cube=Cube([23]),
+            cf_var=cf_var)
+
+        return engine
+
+    def test_valid(self):
+        global_attributes = {'Conventions': 'CF-1.5',
+                             'comment': 'Mocked test object'}
+        engine = self._make_engine(global_attributes)
+        build_cube_metadata(engine)
+        expected = global_attributes
+        self.assertEqual(engine.cube.attributes, expected)
+
+
 if __name__ == "__main__":
     tests.main()

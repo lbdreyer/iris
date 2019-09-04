@@ -28,7 +28,7 @@ import cf_units
 import iris.std_names
 
 
-def validate_standard_name(name):
+def get_valid_standard_name(name):
     # Standard names are optionally followed by a standard name
     # modifier, separated by one or more blank spaces
     name_parts = name.split(' ')
@@ -147,7 +147,7 @@ class CFVariableMixin(object):
         if name is None:
             self._standard_name = name
         else:
-            self._standard_name = validate_standard_name(name)
+            self._standard_name = get_valid_standard_name(name)
 
     @property
     def units(self):

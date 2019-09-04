@@ -1075,7 +1075,7 @@ fc_extras
     import iris.exceptions
     import iris.util
     from iris._lazy_data import as_lazy_data
-    from iris._cube_coord_common import validate_standard_name
+    from iris._cube_coord_common import get_valid_standard_name
 
 
     #
@@ -1187,10 +1187,10 @@ fc_extras
 
         if standard_name is not None:
             try:
-                cube.standard_name = validate_standard_name(standard_name)
+                cube.standard_name = get_valid_standard_name(standard_name)
             except ValueError as e:
                 if str(e) != '{!r} is not a valid standard_name'.format(name):
-                    raise:
+                    raise
                 else:
                     if cube.long_name is not None:
                         cube.attributes['invalid_standard_name'] = standard_name
@@ -1528,7 +1528,7 @@ fc_extras
 
         if standard_name is not None:
             try:
-                standard_name = validate_standard_name(standard_name)
+                standard_name = get_valid_standard_name(standard_name)
             except ValueError as e:
                 if str(e) != '{!r} is not a valid standard_name'.format(name):
                     raise
@@ -1553,7 +1553,7 @@ fc_extras
         # Last attempt to set the standard name to something meaningful.
         if standard_name is None:
             try:
-                standard_name = validate_standard_name(cf_name)
+                standard_name = get_valid_standard_name(cf_name)
             except ValueError as e:
                 if str(e) != '{!r} is not a valid standard_name'.format(name):
                     raise
