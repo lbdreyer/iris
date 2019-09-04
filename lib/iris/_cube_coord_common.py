@@ -40,10 +40,9 @@ def get_valid_standard_name(name):
         if std_name_extension:
             standard_name_modifier = std_name_extension[-1]
             # Check only blank spaces before standard_name_modifier
-            if any(item for item in std_name_extension[:-1]):
-                raise ValueError(error_msg)
-            if standard_name_modifier not in \
-                    iris.fileformats.cf.STD_NAME_MODIFIERS_UNITS:
+            if (any(item for item in std_name_extension[:-1]) or \
+                    standard_name_modifier not in \
+                    iris.fileformats.cf.STD_NAME_MODIFIERS_UNITS):
                 raise ValueError(error_msg)
         return name
     else:
