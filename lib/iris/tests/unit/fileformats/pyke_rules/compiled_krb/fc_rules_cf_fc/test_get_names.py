@@ -36,12 +36,12 @@ from iris.tests import mock
 
 class TestGetNames(tests.IrisTest):
     @staticmethod
-    def _make_cf_var(cf_name=None, standard_name=None, long_name=None):
+    def _make_cf_var(standard_name, long_name, cf_name):
         cf_var = mock.Mock(
             cf_name=cf_name,
             standard_name=standard_name,
             long_name=long_name,
-            units='m',
+            units='degrees',
             dtype=np.float64,
             cell_methods=None,
             cf_group=mock.Mock(global_attributes={}))
@@ -53,7 +53,8 @@ class TestGetNames(tests.IrisTest):
         # Expected - The expected results
         exp_standard_name, exp_long_name, exp_cf_name, exp_attributes = expected
 
-        cf_var = self._make_cf_var(standard_name, long_name, cf_name)
+        cf_var = self._make_cf_var(standard_name=standard_name,
+                                   long_name=long_name, cf_name=cf_name)
         attributes = {}
 
         res_standard_name, res_long_name, res_cf_name = get_names(
@@ -146,22 +147,22 @@ class TestGetNames(tests.IrisTest):
 
     def test_16(self):
         inputs = ('latitude_coord', None, 'grid_latitude', None)
-        expected = ('grid_latitude', 'latitude_coord', 'grid_latitude', {'invalid_standard_name': 'latitude_coord'})
+        expected = ('grid_latitude', None, 'grid_latitude', {})
         self.repeat_test(inputs, expected)
 
     def test_17(self):
         inputs = ('latitude_coord', None, 'grid_latitude', 'latitude')
-        expected = ('latitude', None, 'grid_latitude', {})
+        expected = ('latitude', None, 'grid_latitude', {'invalid_standard_name': 'latitude_coord'})
         self.repeat_test(inputs, expected)
 
     def test_18(self):
         inputs = ('latitude_coord', None, 'lat_var_name', None)
-        expected = (None, 'latitude_coord', 'lat_var_name', {'invalid_standard_name': 'latitude_coord'})
+        expected = (None, None, 'lat_var_name', {})
         self.repeat_test(inputs, expected)
 
     def test_19(self):
         inputs = ('latitude_coord', None, 'lat_var_name', 'latitude')
-        expected = ('latitude', None, 'lat_var_name', {})
+        expected = ('latitude', None, 'lat_var_name', {'invalid_standard_name': 'latitude_coord'})
         self.repeat_test(inputs, expected)
 
     def test_20(self):
@@ -171,7 +172,7 @@ class TestGetNames(tests.IrisTest):
 
     def test_21(self):
         inputs = ('latitude_coord', 'lat_long_name', 'grid_latitude', 'latitude')
-        expected = ('latitude', 'lat_long_name', 'grid_latitude', {})
+        expected = ('latitude', 'lat_long_name', 'grid_latitude', {'invalid_standard_name': 'latitude_coord'})
         self.repeat_test(inputs, expected)
 
     def test_22(self):
@@ -181,7 +182,7 @@ class TestGetNames(tests.IrisTest):
 
     def test_23(self):
         inputs = ('latitude_coord', 'lat_long_name', 'lat_var_name', 'latitude')
-        expected = ('latitude', 'lat_long_name', 'lat_var_name', {})
+        expected = ('latitude', 'lat_long_name', 'lat_var_name', {'invalid_standard_name': 'latitude_coord'})
         self.repeat_test(inputs, expected)
 
 
