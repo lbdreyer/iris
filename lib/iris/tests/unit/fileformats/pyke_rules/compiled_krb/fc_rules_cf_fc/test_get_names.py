@@ -29,12 +29,24 @@ import iris.tests as tests
 
 import numpy as np
 
-from iris.cube import Cube
 from iris.fileformats._pyke_rules.compiled_krb.fc_rules_cf_fc import get_names
 from iris.tests import mock
 
 
 class TestGetNames(tests.IrisTest):
+    """
+    The tests included in this class cover all the variations of possible 
+    combinations of the following inputs:
+    * standard_name = [None, 'projection_y_coordinate', 'latitude_coordinate']
+    * long_name = [None, 'lat_long_name']
+    * var_name = ['grid_latitude', 'lat_var_name']
+    * coord_name = [None, 'latitude']
+    
+    standard_name, var_name and coord_name each contain a different valid CF
+    standard name so that it is clear which is being used to set the resulting
+    standard_name.
+
+    """
     @staticmethod
     def _make_cf_var(standard_name, long_name, cf_name):
         cf_var = mock.Mock(
@@ -47,143 +59,199 @@ class TestGetNames(tests.IrisTest):
             cf_group=mock.Mock(global_attributes={}))
         return cf_var
 
-    def repeat_test(self, inputs, expected):
-        # Inputs - what would be written in the file
-        standard_name, long_name, cf_name, coord_name = inputs
-        # Expected - The expected results
-        exp_standard_name, exp_long_name, exp_cf_name, exp_attributes = expected
+    def check_names(self, inputs, expected):
+        # Inputs - attributes on the fake CF Variable. Note: coord_name is
+        # optionally set in some pyke rules.
+        standard_name, long_name, var_name, coord_name = inputs
+        # Expected - The expected names and attributes.
+        exp_standard_name, exp_long_name, exp_var_name, exp_attributes = expected
 
         cf_var = self._make_cf_var(standard_name=standard_name,
-                                   long_name=long_name, cf_name=cf_name)
+                                   long_name=long_name, cf_name=var_name)
         attributes = {}
-
-        res_standard_name, res_long_name, res_cf_name = get_names(
+        res_standard_name, res_long_name, res_var_name = get_names(
             cf_var, coord_name, attributes)
 
+        # Check the names and attributes are as expected.
         self.assertEqual(res_standard_name, exp_standard_name)
         self.assertEqual(res_long_name, exp_long_name)
-        self.assertEqual(res_cf_name, exp_cf_name)
+        self.assertEqual(res_var_name, exp_var_name)
         self.assertEqual(attributes, exp_attributes)
 
-    def test_0(self):
-        inputs = (None, None, 'grid_latitude', None)
-        expected = ('grid_latitude', None, 'grid_latitude', {})
-        self.repeat_test(inputs, expected)
+    def test_var_name_valid(self):
+        # Only var_name is set and it is set to a valid standard_name.
+        inp = (None, None, 'grid_latitude', None)
+        exp = ('grid_latitude', None, 'grid_latitude', {})
+        self.check_names(inp, exp)
         
-    def test_1(self):
-        inputs = (None, None, 'grid_latitude', 'latitude')
-        expected = ('latitude', None, 'grid_latitude', {})
-        self.repeat_test(inputs, expected)
+    def test_var_name_valid_coord_name_set(self):
+        # var_name is a valid standard_name, coord_name is also set.
+        inp = (None, None, 'grid_latitude', 'latitude')
+        exp = ('latitude', None, 'grid_latitude', {})
+        self.check_names(inp, exp)
 
-    def test_2(self):
-        inputs = (None, None, 'lat_var_name', None)
-        expected = (None, None, 'lat_var_name', {})
-        self.repeat_test(inputs, expected)
+    def test_var_name_invalid(self):
+        # Only var_name is set but it is not a valid standard_name.
+        inp = (None, None, 'lat_var_name', None)
+        exp = (None, None, 'lat_var_name', {})
+        self.check_names(inp, exp)
 
-    def test_3(self):
-        inputs = (None, None, 'lat_var_name', 'latitude')
-        expected = ('latitude', None, 'lat_var_name', {})
-        self.repeat_test(inputs, expected)
+    def test_var_name_invalid_coord_name_set(self):
+        # var_name is not a valid standard_name, the coord_name is also set.        
+        inp = (None, None, 'lat_var_name', 'latitude')
+        exp = ('latitude', None, 'lat_var_name', {})
+        self.check_names(inp, exp)
 
-    def test_4(self):
-        inputs = (None, 'lat_long_name', 'grid_latitude', None)
-        expected = ('grid_latitude', 'lat_long_name', 'grid_latitude', {})
-        self.repeat_test(inputs, expected)
+    def test_long_name_set_var_name_valid(self):
+        # long_name is not None, var_name is set to a valid standard_name.
+        inp = (None, 'lat_long_name', 'grid_latitude', None)
+        exp = ('grid_latitude', 'lat_long_name', 'grid_latitude', {})
+        self.check_names(inp, exp)
         
-    def test_5(self):
-        inputs = (None, 'lat_long_name', 'grid_latitude', 'latitude')
-        expected = ('latitude', 'lat_long_name', 'grid_latitude', {})
-        self.repeat_test(inputs, expected)
+    def test_long_name_set_var_name_valid_coord_name_set(self):
+        # long_name is not None, var_name is set to a valid standard_name, and
+        # coord_name is set.
+        inp = (None, 'lat_long_name', 'grid_latitude', 'latitude')
+        exp = ('latitude', 'lat_long_name', 'grid_latitude', {})
+        self.check_names(inp, exp)
 
-    def test_6(self):
-        inputs = (None, 'lat_long_name', 'lat_var_name', None)
-        expected = (None, 'lat_long_name', 'lat_var_name', {})
-        self.repeat_test(inputs, expected)
+    def test_long_name_set_var_name_invalid(self):
+        # long_name is not None, var_name is not set to a valid standard_name.        
+        inp = (None, 'lat_long_name', 'lat_var_name', None)
+        exp = (None, 'lat_long_name', 'lat_var_name', {})
+        self.check_names(inp, exp)
 
-    def test_7(self):
-        inputs = (None, 'lat_long_name', 'lat_var_name', 'latitude')
-        expected = ('latitude', 'lat_long_name', 'lat_var_name', {})
-        self.repeat_test(inputs, expected)
+    def test_long_name_set_var_name_invalid_coord_name_set(self):
+        # long_name is not None, var_name is not set to a valid standard_name,
+        # and coord_name is set.
+        inp = (None, 'lat_long_name', 'lat_var_name', 'latitude')
+        exp = ('latitude', 'lat_long_name', 'lat_var_name', {})
+        self.check_names(inp, exp)
 
-    def test_8(self):
-        inputs = ('projection_y_coordinate', None, 'grid_latitude', None)
-        expected = ('projection_y_coordinate', None, 'grid_latitude', {})
-        self.repeat_test(inputs, expected)
+    def test_std_name_valid_var_name_valid(self):
+        # standard_name is a valid standard name, var_name is a valid standard
+        # name.
+        inp = ('projection_y_coordinate', None, 'grid_latitude', None)
+        exp = ('projection_y_coordinate', None, 'grid_latitude', {})
+        self.check_names(inp, exp)
 
-    def test_9(self):
-        inputs = ('projection_y_coordinate', None, 'grid_latitude', 'latitude')
-        expected = ('projection_y_coordinate', None, 'grid_latitude', {})
-        self.repeat_test(inputs, expected)
+    def test_std_name_valid_var_name_valid_coord_name_set(self):
+        # standard_name is a valid standard name, var_name is a valid standard
+        # name, coord_name is set.
+        inp = ('projection_y_coordinate', None, 'grid_latitude', 'latitude')
+        exp = ('projection_y_coordinate', None, 'grid_latitude', {})
+        self.check_names(inp, exp)
 
-    def test_10(self):
-        inputs = ('projection_y_coordinate', None, 'lat_var_name', None)
-        expected = ('projection_y_coordinate', None, 'lat_var_name', {})
-        self.repeat_test(inputs, expected)
+    def test_std_name_valid_var_name_invalid(self):
+        # standard_name is a valid standard name, var_name is not a valid
+        # standard name.
+        inp = ('projection_y_coordinate', None, 'lat_var_name', None)
+        exp = ('projection_y_coordinate', None, 'lat_var_name', {})
+        self.check_names(inp, exp)
 
-    def test_11(self):
-        inputs = ('projection_y_coordinate', None, 'lat_var_name', 'latitude')
-        expected = ('projection_y_coordinate', None, 'lat_var_name', {})
-        self.repeat_test(inputs, expected)
+    def test_std_name_valid_var_name_invalid_coord_name_set(self):
+        # standard_name is a valid standard name, var_name is not a valid
+        # standard name, coord_name is set.
+        inp = ('projection_y_coordinate', None, 'lat_var_name', 'latitude')
+        exp = ('projection_y_coordinate', None, 'lat_var_name', {})
+        self.check_names(inp, exp)
 
-    def test_12(self):
-        inputs = ('projection_y_coordinate', 'lat_long_name', 'grid_latitude', None)
-        expected = ('projection_y_coordinate', 'lat_long_name', 'grid_latitude', {})
-        self.repeat_test(inputs, expected)
+    def test_std_name_valid_long_name_set_var_name_valid(self):
+        # standard_name is a valid standard name, long_name is not None, 
+        # var_name is a valid standard name.
+        inp = ('projection_y_coordinate', 'lat_long_name', 'grid_latitude',
+               None)
+        exp = ('projection_y_coordinate', 'lat_long_name', 'grid_latitude', {})
+        self.check_names(inp, exp)
 
-    def test_13(self):
-        inputs = ('projection_y_coordinate', 'lat_long_name', 'grid_latitude', 'latitude')
-        expected = ('projection_y_coordinate', 'lat_long_name', 'grid_latitude', {})
-        self.repeat_test(inputs, expected)
+    def test_std_name_valid_long_name_set_var_name_valid_coord_name_set(self):
+        # standard_name is a valid standard name, long_name is not None, 
+        # var_name is a valid standard name, coord_name is set.
+        ins = ('projection_y_coordinate', 'lat_long_name', 'grid_latitude',
+               'latitude')
+        exp = ('projection_y_coordinate', 'lat_long_name', 'grid_latitude', {})
+        self.check_names(inp, exp)
 
-    def test_14(self):
-        inputs = ('projection_y_coordinate', 'lat_long_name', 'lat_var_name', None)
-        expected = ('projection_y_coordinate', 'lat_long_name', 'lat_var_name', {})
-        self.repeat_test(inputs, expected)
+    def test_std_name_valid_long_name_set_var_name_invalid(self):
+        # standard_name is a valid standard name, long_name is not None, 
+        # var_name is not a valid standard name.
+        ins = ('projection_y_coordinate', 'lat_long_name', 'lat_var_name',
+               None)
+        exp = ('projection_y_coordinate', 'lat_long_name', 'lat_var_name', {})
+        self.check_names(inp, exp)
 
-    def test_15(self):
-        inputs = ('projection_y_coordinate', 'lat_long_name', 'lat_var_name', 'latitude')
-        expected = ('projection_y_coordinate', 'lat_long_name', 'lat_var_name', {})
-        self.repeat_test(inputs, expected)
+    def test_std_name_valid_long_name_set_var_name_invalid_coord_name_set(
+            self):
+        # standard_name is a valid standard name, long_name is not None, 
+        # var_name is not a valid standard name, coord_name is set.
+        inp = ('projection_y_coordinate', 'lat_long_name', 'lat_var_name',
+               'latitude')
+        exp = ('projection_y_coordinate', 'lat_long_name', 'lat_var_name', {})
+        self.check_names(inp, exp)
 
-    def test_16(self):
-        inputs = ('latitude_coord', None, 'grid_latitude', None)
-        expected = ('grid_latitude', None, 'grid_latitude', {})
-        self.repeat_test(inputs, expected)
+    def test_std_name_invalid_var_name_valid(self):
+        # standard_name is not a valid standard name, var_name is a valid
+        # standard name.
+        inp = ('latitude_coord', None, 'grid_latitude', None)
+        exp = ('grid_latitude', None, 'grid_latitude', {})
+        self.check_names(inp, exp)
 
-    def test_17(self):
-        inputs = ('latitude_coord', None, 'grid_latitude', 'latitude')
-        expected = ('latitude', None, 'grid_latitude', {'invalid_standard_name': 'latitude_coord'})
-        self.repeat_test(inputs, expected)
+    def test_std_name_invalid_var_name_valid_coord_name_set(self):
+        # standard_name is not a valid standard name, var_name is a valid
+        # standard name, coord_name is set.
+        inp = ('latitude_coord', None, 'grid_latitude', 'latitude')
+        exp = ('latitude', None, 'grid_latitude',
+               {'invalid_standard_name': 'latitude_coord'})
+        self.check_names(inp, exp)
 
-    def test_18(self):
-        inputs = ('latitude_coord', None, 'lat_var_name', None)
-        expected = (None, None, 'lat_var_name', {})
-        self.repeat_test(inputs, expected)
+    def test_std_name_invalid_var_name_invalid(self):
+        # standard_name is not a valid standard name, var_name is not a valid
+        # standard name.
+        inp = ('latitude_coord', None, 'lat_var_name', None)
+        exp = (None, None, 'lat_var_name', {})
+        self.check_names(inp, exp)
 
-    def test_19(self):
-        inputs = ('latitude_coord', None, 'lat_var_name', 'latitude')
-        expected = ('latitude', None, 'lat_var_name', {'invalid_standard_name': 'latitude_coord'})
-        self.repeat_test(inputs, expected)
+    def test_std_name_invalid_var_name_invalid_coord_name_set(self):
+        # standard_name is not a valid standard name, var_name is not a valid
+        # standard name, coord_name is set.
+        inp = ('latitude_coord', None, 'lat_var_name', 'latitude')
+        exp = ('latitude', None, 'lat_var_name',
+               {'invalid_standard_name': 'latitude_coord'})
+        self.check_names(inp, exp)
 
-    def test_20(self):
-        inputs = ('latitude_coord', 'lat_long_name', 'grid_latitude', None)
-        expected = ('grid_latitude', 'lat_long_name', 'grid_latitude', {'invalid_standard_name': 'latitude_coord'})
-        self.repeat_test(inputs, expected)
+    def test_std_name_invalid_long_name_set_var_name_valid(self):
+        # standard_name is not a valid standard name, long_name is not None
+        # var_name is a valid standard name.
+        inp = ('latitude_coord', 'lat_long_name', 'grid_latitude', None)
+        exp = ('grid_latitude', 'lat_long_name', 'grid_latitude',
+               {'invalid_standard_name': 'latitude_coord'})
+        self.check_names(inp, exp)
 
-    def test_21(self):
-        inputs = ('latitude_coord', 'lat_long_name', 'grid_latitude', 'latitude')
-        expected = ('latitude', 'lat_long_name', 'grid_latitude', {'invalid_standard_name': 'latitude_coord'})
-        self.repeat_test(inputs, expected)
+    def test_std_name_invalid_long_name_set_var_name_valid_coord_name_set(
+            self):
+        # standard_name is not a valid standard name, long_name is not None,
+        # var_name is a valid standard name, coord_name is set.
+        inp = ('latitude_coord', 'lat_long_name', 'grid_latitude', 'latitude')
+        exp = ('latitude', 'lat_long_name', 'grid_latitude',
+               {'invalid_standard_name': 'latitude_coord'})
+        self.check_names(inp, exp)
 
-    def test_22(self):
-        inputs = ('latitude_coord', 'lat_long_name', 'lat_var_name', None)
-        expected = (None, 'lat_long_name', 'lat_var_name', {'invalid_standard_name': 'latitude_coord'})
-        self.repeat_test(inputs, expected)
+    def test_std_name_invalid_long_name_set_var_name_invalid(self):
+        # standard_name is not a valid standard name, long_name is not None
+        # var_name is not a valid standard name.
+        inp = ('latitude_coord', 'lat_long_name', 'lat_var_name', None)
+        exp = (None, 'lat_long_name', 'lat_var_name',
+               {'invalid_standard_name': 'latitude_coord'})
+        self.check_names(inp, exp)
 
-    def test_23(self):
-        inputs = ('latitude_coord', 'lat_long_name', 'lat_var_name', 'latitude')
-        expected = ('latitude', 'lat_long_name', 'lat_var_name', {'invalid_standard_name': 'latitude_coord'})
-        self.repeat_test(inputs, expected)
+    def test_std_name_invalid_long_name_set_var_name_invalid_coord_name_set(
+            self):
+        # standard_name is not a valid standard name, long_name is not None,
+        # var_name is not a valid standard name, coord_name is set.
+        inp = ('latitude_coord', 'lat_long_name', 'lat_var_name', 'latitude')
+        exp = ('latitude', 'lat_long_name', 'lat_var_name',
+               {'invalid_standard_name': 'latitude_coord'})
+        self.check_names(inp, exp)
 
 
 if __name__ == "__main__":

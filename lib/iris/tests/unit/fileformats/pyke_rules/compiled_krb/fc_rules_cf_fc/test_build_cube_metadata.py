@@ -85,43 +85,48 @@ class TestInvalidGlobalAttributes(tests.IrisTest):
 
 
 class TestCubeName(tests.IrisTest):
-    def repeat_test(self, inputs, expected):
+    def check_cube_names(self, inputs, expected):
+        # Inputs - attributes on the fake CF Variable.
         standard_name, long_name = inputs
+        # Expected - The expected cube attributes.
         exp_standard_name, exp_long_name = expected
+
         engine = _make_engine(standard_name=standard_name, long_name=long_name)
         build_cube_metadata(engine)
+
+        # Check the cube's standard name and long name are as expected.
         self.assertEqual(engine.cube.standard_name, exp_standard_name)
         self.assertEqual(engine.cube.long_name, exp_long_name)
 
     def test_standard_name_none_long_name_none(self):
         inputs = (None, None)
         expected = (None, None)
-        self.repeat_test(inputs, expected)
+        self.check_cube_names(inputs, expected)
 
     def test_standard_name_none_long_name_set(self):
         inputs = (None, 'ice_thickness_long_name')
         expected = (None, 'ice_thickness_long_name')
-        self.repeat_test(inputs, expected)
+        self.check_cube_names(inputs, expected)
 
     def test_standard_name_valid_long_name_none(self):
         inputs = ('sea_ice_thickness', None)
         expected = ('sea_ice_thickness', None)
-        self.repeat_test(inputs, expected)
+        self.check_cube_names(inputs, expected)
 
     def test_standard_name_valid_long_name_set(self):
         inputs = ('sea_ice_thickness', 'ice_thickness_long_name')
         expected = ('sea_ice_thickness', 'ice_thickness_long_name')
-        self.repeat_test(inputs, expected)
+        self.check_cube_names(inputs, expected)
 
     def test_standard_name_invalid_long_name_none(self):
         inputs = ('not_a_standard_name', None)
         expected = (None, 'not_a_standard_name',)
-        self.repeat_test(inputs, expected)
+        self.check_cube_names(inputs, expected)
 
     def test_standard_name_invalid_long_name_set(self):
         inputs = ('not_a_standard_name', 'ice_thickness_long_name')
         expected = (None, 'ice_thickness_long_name')
-        self.repeat_test(inputs, expected)
+        self.check_cube_names(inputs, expected)
 
 
 if __name__ == "__main__":
