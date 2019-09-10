@@ -2319,7 +2319,7 @@ class CellMeasure(six.with_metaclass(ABCMeta, CFVariableMixin)):
             # checking against existing content.
             new_cell_measure._data_manager = None
             # Set new data via the data setter code, which applies standard
-            # checks and ajustments.
+            # checks and adjustments.
             new_cell_measure.data = data
 
         return new_cell_measure

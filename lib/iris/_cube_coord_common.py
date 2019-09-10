@@ -20,7 +20,7 @@ from six.moves import (filter, input, map, range, zip)  # noqa
 import six
 
 # TODO: Is this a mixin or a base class?
-
+from abc import ABCMeta
 import string
 
 import cf_units
@@ -159,3 +159,9 @@ class CFVariableMixin(object):
     @attributes.setter
     def attributes(self, attributes):
         self._attributes = LimitedAttributeDict(attributes or {})
+
+@six.add_metaclass(ABCMeta)
+class MetadataVariable(object):
+    
+
+    
