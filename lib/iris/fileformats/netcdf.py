@@ -425,6 +425,11 @@ def _assert_case_specific_facts(engine, cf, cf_group):
         engine.add_case_specific_fact(_PYKE_FACT_BASE, 'auxiliary_coordinate',
                                       (cf_name,))
 
+    # Assert facts for CF ancillary_variables.
+    for cf_name in six.iterkeys(cf_group.ancillary_variables):
+        engine.add_case_specific_fact(_PYKE_FACT_BASE,
+                                      'ancillary_variable', (cf_name,))
+
     # Assert facts for CF cell measures.
     for cf_name in six.iterkeys(cf_group.cell_measures):
         engine.add_case_specific_fact(_PYKE_FACT_BASE,
@@ -994,6 +999,10 @@ class Saver(object):
         # variable to them
         self._add_aux_coords(cube, cf_var_cube, dimension_names)
 
+        # Add the ancillary_dataset variable names and associate the data
+        # variable to them
+        self._add_ancillary_datasets(cube, cf_var_cube, dimension_names)
+
         # Add the cell_measures variable names and associate the data
         # variable to them
         self._add_cell_measures(cube, cf_var_cube, dimension_names)
@@ -1151,6 +1160,40 @@ class Saver(object):
         if auxiliary_coordinate_names:
             coord_variable_names = ' '.join(sorted(auxiliary_coordinate_names))
             _setncattr(cf_var_cube, 'coordinates', coord_variable_names)
+
+    def _add_ancillary_datasets(self, cube, cf_var_cube, dim_names):
+        """
+        Add ancillary datasets to the dataset and associate with the data
+        variable
+
+        Args:
+
+        * cube (:class:`iris.cube.Cube`):
+            A :class:`iris.cube.Cube` to be saved to a netCDF file.
+        * cf_var_cube (:class:`netcdf.netcdf_variable`):
+            cf variable cube representation.
+
+        """
+        ancillary_datasets_names = []
+        # Add CF-netCDF variables for the associated ancillary_datasets.
+        for anc in sorted(cube.ancillary_datasets(),
+                          key=lambda anc: anc.name()):
+            # Create the associated ancillary_dataset CF-netCDF variable.
+            if anc not in self._name_coord_map.coords:
+                cf_name = self._create_cf_ancillary_variable(cube, dim_names,
+                                                             anc)
+                self._name_coord_map.append(cf_name, anc)
+            else:
+                cf_name = self._name_coord_map.name(anc)
+
+            if cf_name is not None:
+                ancillary_datasets_names.append(cf_name)
+
+        # Add CF-netCDF ancillary variable references to the
+        # CF-netCDF data variable.
+        if ancillary_datasets_names:
+            anc_var_names = ' '.join(sorted(ancillary_datasets_names))
+            _setncattr(cf_var_cube, 'ancillary_variables', anc_var_names)
 
     def _add_cell_measures(self, cube, cf_var_cube, dim_names):
         """
@@ -1516,6 +1559,71 @@ class Saver(object):
 
         cf_name = self.cf_valid_var_name(cf_name)
         return cf_name
+
+    def _create_cf_ancillary_variable(self, cube, dimension_names, ancillary_dataset):
+        """
+        Create the associated CF-netCDF variable in the netCDF dataset for the
+        given ancillary_dataset.
+
+        Args:
+
+        * cube (:class:`iris.cube.Cube`):
+            The associated cube being saved to CF-netCDF file.
+        * ancillary_dataset (:class:`iris.coords.AncillaryDataset`):
+            The ancillary dataset to be saved to CF-netCDF file.
+
+        Returns:
+            The string name of the associated CF-netCDF variable saved.
+
+        """
+        cf_name = self._get_coord_variable_name(cube, ancillary_dataset)
+        while cf_name in self._dataset.variables:
+            cf_name = self._increment_name(cf_name)
+
+        # Derive the data dimension names for the coordinate.
+        cf_dimensions = [dimension_names[dim] for dim in
+                         range(cube.ndim)]
+
+        # Get the data values.
+        data = ancillary_dataset.data
+
+        # Disallow saving of *masked* ancillary data.
+        # TODO does this work?
+        if ma.is_masked(data):
+            # We can't save masked points properly, as we don't maintain a
+            # suitable fill_value.  (Load will not record one, either).
+            msg = "Ancillary Data with missing data are not supported."
+            raise ValueError(msg)
+
+        # Get the values in a form which is valid for the file format.
+        data = self._ensure_valid_dtype(data, 'coordinate', ancillary_dataset)
+
+        # Create the CF-netCDF variable.
+        cf_var = self._dataset.createVariable(
+            cf_name, data.dtype.newbyteorder('='), cf_dimensions)
+
+        # Add the data to the CF-netCDF variable.
+        cf_var[:] = data
+
+        if ancillary_dataset.units != 'unknown':
+            _setncattr(cf_var, 'units', str(ancillary_dataset.units))
+
+        if ancillary_dataset.standard_name is not None:
+            _setncattr(cf_var, 'standard_name', ancillary_dataset.standard_name)
+
+        if ancillary_dataset.long_name is not None:
+            _setncattr(cf_var, 'long_name', ancillary_dataset.long_name)
+
+        # Add any other custom coordinate attributes.
+        for name in sorted(ancillary_dataset.attributes):
+            value = ancillary_dataset.attributes[name]
+
+            # Don't clobber existing attributes.
+            if not hasattr(cf_var, name):
+                _setncattr(cf_var, name, value)
+
+        return cf_name
+
 
     def _create_cf_cell_measure_variable(self, cube, dimension_names,
                                          cell_measure):

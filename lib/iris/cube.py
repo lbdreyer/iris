@@ -687,7 +687,7 @@ bound=(1994-12-01 00:00:00, 1998-12-01 00:00:00)
                  var_name=None, units=None, attributes=None,
                  cell_methods=None, dim_coords_and_dims=None,
                  aux_coords_and_dims=None, aux_factories=None,
-                 cell_measures_and_dims=None):
+                 cell_measures_and_dims=None, ancillary_datasets=None):
         """
         Creates a cube with data and optional metadata.
 
@@ -734,6 +734,8 @@ bound=(1994-12-01 00:00:00, 1998-12-01 00:00:00)
             :mod:`iris.aux_factory`.
         * cell_measures_and_dims
             A list of CellMeasures with dimension mappings.
+        * ancillary_datasets
+            A list of AncillaryDatasets.
 
         For example::
             >>> from iris.coords import DimCoord
@@ -782,6 +784,9 @@ bound=(1994-12-01 00:00:00, 1998-12-01 00:00:00)
         # Cell Measures
         self._cell_measures_and_dims = []
 
+        # Ancillary Datasets
+        self._ancillary_datasets = []
+
         identities = set()
         if dim_coords_and_dims:
             dims = set()
@@ -810,6 +815,10 @@ bound=(1994-12-01 00:00:00, 1998-12-01 00:00:00)
         if cell_measures_and_dims:
             for cell_measure, dims in cell_measures_and_dims:
                 self.add_cell_measure(cell_measure, dims)
+
+        if ancillary_datasets:
+            for ancillary_dataset in ancillary_datasets:
+                self.add_ancillary_dataset(ancillary_dataset)
 
     @property
     def metadata(self):
@@ -1044,6 +1053,28 @@ bound=(1994-12-01 00:00:00, 1998-12-01 00:00:00)
         self._cell_measures_and_dims.sort(key=lambda cm_dims:
                                           (cm_dims[0]._as_defn(), cm_dims[1]))
 
+    def add_ancillary_dataset(self, ancillary_dataset):
+        """
+        Adds a CF ancillary dataset to the cube.
+
+        Args:
+        * ancillary_dataset
+            The :class:`iris.coords.AncillaryDataset` instance to be added to
+            the cube
+
+        Raises a ValueError if a cell_measure with identical metadata already
+        exists on the cube.
+
+        """
+        if self.ancillary_datasets(ancillary_dataset):
+            raise ValueError('Duplicate ancillary datasets not permitted')
+
+        # Check dataset matches cube shape
+        if ancillary_dataset.shape != self.shape:
+            raise ValueError('Ancillary data must match the shape of the cube.')
+
+        self._ancillary_datasets.append(ancillary_dataset)
+
     def add_dim_coord(self, dim_coord, data_dim):
         """
         Add a CF coordinate to the cube.
@@ -1146,6 +1177,18 @@ bound=(1994-12-01 00:00:00, 1998-12-01 00:00:00)
                                         dim in self._cell_measures_and_dims
                                         if cell_measure_ is not cell_measure]
 
+    def remove_ancillary_dataset(self, ancillary_dataset):
+        """
+        Removes an ancillary dataset from the cube.
+
+        Args:
+        * ancillary_dataset
+            The ancillary dataset to be removed
+
+        """
+        # TODO:  remove based on name
+        self._ancillary_datasets.remove(ancillary_dataset)
+
     def replace_coord(self, new_coord):
         """
         Replace the coordinate whose metadata matches the given coordinate.
@@ -1222,6 +1265,76 @@ bound=(1994-12-01 00:00:00, 1998-12-01 00:00:00)
             raise iris.exceptions.CellMeasureNotFoundError(cell_measure.name())
 
         return matches[0]
+
+    def ancillary_datasets(self, name_or_ancillary_dataset=None):
+        """
+        Returns a list of ancillary datasets in this cube that fit the given
+        criteria.
+
+        Kwargs:
+        * name_or_ancillary_dataset
+            Either
+            (a) a :attr:`standard_name`, :attr:`long_name`, or
+            :attr:`var_name`. Defaults to value of `default`
+            (which itself defaults to `unknown`) as defined in
+            :class:`iris._cube_coord_common.CFVariableMixin`.
+            (b) an ancillary dataset with metadata equal to that of
+            the desired ancillary datasets.
+        See also :meth:`Cube.cell_measure()<iris.cube.Cube.cell_measure>`.
+
+        """
+        name = None
+
+        if isinstance(name_or_ancillary_dataset, six.string_types):
+            name = name_or_ancillary_dataset
+        else:
+            ancillary_dataset = name_or_ancillary_dataset
+        ancillary_datasets = []
+        for anc_data in self._ancillary_datasets:
+            if name is not None:
+                if anc_data.name() == name:
+                    ancillary_datasets.append(anc_data)
+            elif ancillary_dataset is not None:
+                if anc_data == ancillary_dataset:
+                    ancillary_datasets.append(anc_data)
+            else:
+                ancillary_datasets.append(anc_data)
+        return ancillary_datasets
+
+    def ancillary_daset(self, name_or_ancillary_dataset=None):
+        """
+        Return a single ancillary dataset given the same arguments as
+        :meth:`Cube.ancillary_datasets`.
+
+        .. note::
+            If the arguments given do not result in precisely 1
+            ancillary_dataset being matched, an
+            :class:`iris.exceptions.AncillaryDatasetsNotFoundError` is raised.
+
+        .. seealso::
+            :meth:`Cube.ancillary_datasets()<iris.cube.Cube.ancillary_datasets>`
+            for full keyword documentation.
+
+        """
+        ancillary_datasets = self.ancillary_datasets(name_or_ancillary_dataset)
+
+        if len(ancillary_datasets) > 1:
+            msg = ('Expected to find exactly 1 ancillary_dataset, but found {}. '
+                   'They were: {}.')
+            msg = msg.format(len(ancillary_datasets),
+                             ', '.join(anc.name() for anc in ancillary_datasets))
+            raise iris.exceptions.AncilliaryDatasetNotFoundError(msg)
+        elif len(ancillary_datasets) == 0:
+            if isinstance(name_or_ancillary_dataset, six.string_types):
+                bad_name = name_or_ancillary_dataset
+            else:
+                bad_name = (name_or_ancillary_dataset and
+                            name_or_ancillary_dataset.name()) or ''
+            msg = 'Expected to find exactly 1 %s ancillary_dataset, but found ' \
+                  'none.' % bad_name
+            raise iris.exceptions.AncilliaryDatasetNotFoundError(msg)
+
+        return ancillary_datasets[0]
 
     def aux_factory(self, name=None, standard_name=None, long_name=None,
                     var_name=None):
@@ -1870,6 +1983,10 @@ bound=(1994-12-01 00:00:00, 1998-12-01 00:00:00)
             vector_cell_measures = [cm for cm in self.cell_measures()
                                     if cm.shape != (1,)]
 
+            # Ancillary Datasets
+            vector_ancillary_datasets = [anc_data for anc_data in
+                                         self.ancillary_datasets()]
+
             # Determine the cube coordinates that don't describe the cube and
             # are most likely erroneous.
             vector_coords = vector_dim_coords + vector_aux_coords + \
@@ -1894,7 +2011,7 @@ bound=(1994-12-01 00:00:00, 1998-12-01 00:00:00)
             # Generate textual summary of cube vector coordinates.
             #
             def vector_summary(vector_coords, cube_header, max_line_offset,
-                               cell_measures=None):
+                               cell_measures=None, ancillary_datasets=None):
                 """
                 Generates a list of suitably aligned strings containing coord
                 names and dimensions indicated by one or more 'x' symbols.
@@ -1907,6 +2024,8 @@ bound=(1994-12-01 00:00:00, 1998-12-01 00:00:00)
                 """
                 if cell_measures is None:
                     cell_measures = []
+                if ancillary_datasets is None:
+                    ancillary_datasets = []
                 vector_summary = []
                 vectors = []
 
@@ -1917,7 +2036,7 @@ bound=(1994-12-01 00:00:00, 1998-12-01 00:00:00)
 
                 # Generate basic textual summary for each vector coordinate
                 # - WITHOUT dimension markers.
-                for coord in vector_coords + cell_measures:
+                for coord in vector_coords + cell_measures + ancillary_datasets:
                     vector_summary.append('%*s%s' % (
                         indent, ' ', iris.util.clip_string(coord.name())))
                 min_alignment = min(alignment)
@@ -1959,6 +2078,19 @@ bound=(1994-12-01 00:00:00, 1998-12-01 00:00:00)
                                                                 char=char)
                             vector_summary[index] += line
                     vectors = vectors + cell_measures
+
+                if ancillary_datasets:
+                    for index, anc_data in enumerate(ancillary_datasets):
+
+                        for dim in range(len(self.shape)):
+                            width = alignment[dim] - len(vector_summary[index])
+                            char = 'x'
+                            line = '{pad:{width}}{char}'.format(pad=' ',
+                                                                width=width,
+                                                                char=char)
+                            vector_summary[index] += line
+                    vectors = vectors + ancillary_datasets
+
                 # Interleave any extra lines that are needed to distinguish
                 # the coordinates.
                 vector_summary = self._summary_extra(vectors,
@@ -2000,6 +2132,16 @@ bound=(1994-12-01 00:00:00, 1998-12-01 00:00:00)
                     cell_measures=vector_cell_measures)
                 summary += '\n     Cell Measures:\n'
                 summary += '\n'.join(cell_measure_summary)
+
+            #
+            # Generate summary of cube ancillary datasets attribute
+            #
+            if vector_ancillary_datasets:
+                ancillary_dataset_summary, cube_header = vector_summary(
+                    [], cube_header, max_line_offset,
+                    ancillary_datasets=vector_ancillary_datasets)
+                summary += '\n     Ancillary Datasets:\n'
+                summary += '\n'.join(ancillary_dataset_summary)
 
             #
             # Generate textual summary of cube scalar coordinates.

@@ -467,6 +467,20 @@ fc_build_cell_measure
         python build_cell_measures(engine, cf_coord_var)
         python engine.rule_triggered.add(rule.name)
 
+#
+# Context:
+#   This rule will trigger for each ancillary_dataset case specific fact.
+#
+# Purpose:
+#   Add the ancillary dataset attribute to the cube.
+#
+fc_build_ancillary_dataset
+    foreach
+        facts_cf.ancillary_dataset($coordinate)
+    assert
+        python cf_coord_var = engine.cf_var.cf_group.ancillary_variables[$coordinate]
+        python build_ancillary_variables(engine, cf_coord_var)
+        python engine.rule_triggered.add(rule.name)
 
 #
 # Context:
@@ -1762,6 +1776,47 @@ fc_extras
 
         # Update the coordinate to CF-netCDF variable mapping.
         engine.provides['coordinates'].append((coord, cf_coord_var.cf_name))
+
+    ################################################################################
+    def build_ancillary_datasets(engine, cf_anc_data_attr, coord_name=None):
+        """Create a CellMeasure instance and add it to the cube."""
+        cf_var = engine.cf_var
+        cube = engine.cube
+        attributes = {}
+
+        # Get units
+        try:
+            attr_units = get_attr_units(cf_anc_data_attr, attributes)
+        except ValueError as e:
+            attr_units = None
+
+        data = _get_cf_var_data(cf_anc_data_attr, engine.filename)
+
+
+        # TODO THEY should be completely overalpped
+        # Determine the name of the dimension/s shared between the CF-netCDF data variable
+        # and the coordinate being built.
+        common_dims = [dim for dim in cf_anc_data_attr.dimensions
+                       if dim in cf_var.dimensions]
+        data_dims = None
+        if common_dims:
+            # Calculate the offset of each common dimension.
+            data_dims = [cf_var.dimensions.index(dim) for dim in common_dims]
+
+        # Determine the standard_name, long_name and var_name
+        standard_name, long_name, var_name = get_names(cf_anc_data_attr, coord_name, attributes)
+
+        # Create the CellMeasure
+        ancillary_dataset = iris.coords.AncillaryDataset(
+            data,
+            standard_name=standard_name,
+            long_name=long_name,
+            var_name=var_name,
+            units=attr_units,
+            attributes=attributes)
+
+        # Add it to the cube
+        cube.add_ancillary_datasets(ancillary_dataset)
 
 
     ################################################################################

@@ -38,6 +38,11 @@ class CoordinateNotFoundError(KeyError):
     pass
 
 
+class AncillaryDatasetNotFoundError(KeyError):
+    """Raised when a search yields no ancillary datasets."""
+    pass
+
+
 class CellMeasureNotFoundError(KeyError):
     """Raised when a search yields no cell measures."""
     pass
