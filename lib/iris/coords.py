@@ -2002,7 +2002,163 @@ class AuxCoord(Coord):
     # AuxCoord-specific code if needed in future.
 
 
-class CellMeasure(six.with_metaclass(ABCMeta, CFVariableMixin)):
+class _MetadataVariable(six.with_metaclass(ABCMeta, CFVariableMixin)):
+    """
+    Metadata associated with a cube that is NOT a coordinate.
+    e.g. cell measures, ancillary data.
+
+    """
+    def __init__(self, data, standard_name=None, long_name=None,
+                 var_name=None, units='1', attributes=None):
+        # CF standard name of the quantity that the coordinate represents.
+        self.standard_name = standard_name
+
+        # Descriptive name of the coordinate.
+        self.long_name = long_name
+
+        # The netCDF variable name for the coordinate.
+        self.var_name = var_name
+
+        # Unit of the quantity that the coordinate represents.
+        self.units = units
+
+        # Other attributes, including user specified attributes that
+        # have no meaning to Iris.
+        self.attributes = attributes
+
+        # Initialise data via the data setter code, which applies standard
+        # checks and adjustments.
+        self.data = data
+
+    @property
+    def data(self):
+        """Property containing the data values as a numpy array"""
+        return self._data_manager.data
+
+    @data.setter
+    def data(self, data):
+        # Set the data to a new array - as long as it's the same shape.
+        # If data are already defined for this Metadata,
+        if data is None:
+            raise ValueError(
+                'The data payload of a {} may not be None; it must be a numpy '
+                'array or equivalent.'.format(self))
+        if data.shape == ():
+            # If we have a scalar value, promote the shape from () to (1,).
+            # NOTE: this way also *realises* it.  Don't think that matters.
+            data = np.array(data, ndmin=1)
+        if hasattr(self, '_data_manager') and self._data_manager is not None:
+            # Check that setting these data wouldn't change self.shape
+            if data.shape != self.shape:
+                raise ValueError("New data shape must match existing data "
+                                 "shape.")
+
+        self._data_manager = DataManager(data)
+
+    @property
+    def shape(self):
+        """Returns the shape of the Cell Measure, expressed as a tuple."""
+        return self._data_manager.shape
+
+    @property
+    def ndim(self):
+        """Returns the number of dimensions of the cell measure."""
+        return self._data_manager.ndim
+
+    def __getitem__(self, keys):
+        """
+        Returns a new _CubeMetadata whose values are obtained by
+        conventional array indexing.
+
+        """
+        # Get the data, all or part of which will become the new data.
+        data = self._data_manager.core_data()
+
+        # Index data with the keys.
+        # Note: does not copy data unless it has to.
+        _, data = iris.util._slice_data_with_keys(data, keys)
+
+        # Always copy data, to avoid making the new metadata a view onto the
+        # old one.
+        data = data.copy()
+
+        # The result is a copy with replacement data.
+        return self.copy(data=data)
+
+    def copy(self, data=None):
+        """
+        Returns a copy of this _CubeMetadata.
+
+        Kwargs:
+
+        * data: A data array for the new cube_metadata.
+                This may be a different shape to the data of the
+                cube_metadata being copied.
+
+        """
+        new_metadata = copy.deepcopy(self)
+        if data is not None:
+            # Remove the existing data manager, to prevent the data setter
+            # checking against existing content.
+            new_metadata._data_manager = None
+            # Set new data via the data setter code, which applies standard
+            # checks and adjustments.
+            new_metadata.data = data
+
+        return new_metadata
+
+    def _repr_other_metadata(self):
+        fmt = ''
+        if self.long_name:
+            fmt = ', long_name={self.long_name!r}'
+        if self.var_name:
+            fmt += ', var_name={self.var_name!r}'
+        if len(self.attributes) > 0:
+            fmt += ', attributes={self.attributes}'
+        result = fmt.format(self=self)
+        return result
+
+    def __str__(self):
+        result = repr(self)
+        return result
+
+    def __repr__(self):
+        fmt = ('{cls}({self.data!r}'
+               ', standard_name={self.standard_name!r}'
+               ', units={self.units!r}{other_metadata})')
+        result = fmt.format(self=self, cls=type(self).__name__,
+                            other_metadata=self._repr_other_metadata())
+        return result
+
+    def _as_defn(self):
+        defn = (self.standard_name, self.long_name, self.var_name,
+                self.units, self.attributes)
+        return defn
+
+    def __eq__(self, other):
+        eq = NotImplemented
+        # TODO check isinstance of correct type
+        if isinstance(other, _MetadataVariable):
+            eq = self._as_defn() == other._as_defn()
+            if eq:
+                eq = (self.data == other.data).all()
+        return eq
+
+    def __ne__(self, other):
+        result = self.__eq__(other)
+        if result is not NotImplemented:
+            result = not result
+        return result
+
+
+class AncillaryDataset(_MetadataVariable):
+    """
+    CF Ancillary Dataset.
+    Eveything is inherited from _cubeMetadata.
+    """
+
+
+class CellMeasure(_MetadataVariable):
     """
     A CF Cell Measure, providing area or volume properties of a cell
     where these cannot be inferred from the Coordinates and
@@ -2041,71 +2197,17 @@ class CellMeasure(six.with_metaclass(ABCMeta, CFVariableMixin)):
             are the only valid entries.
 
         """
-        #: CF standard name of the quantity that the coordinate represents.
-        self.standard_name = standard_name
+        super(CellMeasure, self).__init__(data, standard_name=standard_name,
+                                          long_name=long_name,
+                                          var_name=var_name,
+                                          units=units, attributes=attributes)
 
-        #: Descriptive name of the coordinate.
-        self.long_name = long_name
-
-        #: The netCDF variable name for the coordinate.
-        self.var_name = var_name
-
-        #: Unit of the quantity that the coordinate represents.
-        self.units = units
-
-        #: Other attributes, including user specified attributes that
-        #: have no meaning to Iris.
-        self.attributes = attributes
-
-        #: String naming the measure type.
+        # String naming the measure type.
         self.measure = measure
-
-        # Initialise data via the data setter code, which applies standard
-        # checks and ajustments.
-        self.data = data
 
     @property
     def measure(self):
         return self._measure
-
-    @property
-    def data(self):
-        """Property containing the data values as a numpy array"""
-        return self._data_manager.data
-
-    @data.setter
-    def data(self, data):
-        # Set the data to a new array - as long as it's the same shape.
-        # If data are already defined for this CellMeasure,
-        if data is None:
-            raise ValueError('The data payload of a CellMeasure may not be '
-                             'None; it must be a numpy array or equivalent.')
-        if _lazy.is_lazy_data(data) and data.dtype.kind in 'biu':
-            # Non-floating cell measures are not valid up to CF v1.7
-            msg = ('Cannot create cell measure with lazy data of type {}, as '
-                   'integer types are not currently supported.')
-            raise ValueError(msg.format(data.dtype))
-        if data.shape == ():
-            # If we have a scalar value, promote the shape from () to (1,).
-            # NOTE: this way also *realises* it.  Don't think that matters.
-            data = np.array(data, ndmin=1)
-        if hasattr(self, '_data_manager') and self._data_manager is not None:
-            # Check that setting these data wouldn't change self.shape
-            if data.shape != self.shape:
-                raise ValueError("New data shape must match existing data "
-                                 "shape.")
-
-        self._data_manager = DataManager(data)
-
-    @property
-    def shape(self):
-        """Returns the shape of the Cell Measure, expressed as a tuple."""
-        return self._data_manager.shape
-
-    @property
-    def ndim(self):
-        """Returns the number of dimensions of the cell measure."""
-        return self._data_manager.ndim
 
     @measure.setter
     def measure(self, measure):
@@ -2113,63 +2215,6 @@ class CellMeasure(six.with_metaclass(ABCMeta, CFVariableMixin)):
             raise ValueError("measure must be 'area' or 'volume', "
                              "not {}".format(measure))
         self._measure = measure
-
-    def __getitem__(self, keys):
-        """
-        Returns a new CellMeasure whose values are obtained by
-        conventional array indexing.
-
-        """
-        # Get the data, all or part of which will become the new data.
-        data = self._data_manager.core_data()
-
-        # Index data with the keys.
-        # Note: does not copy data unless it has to.
-        _, data = iris.util._slice_data_with_keys(data, keys)
-
-        # Always copy data, to avoid making the new measure a view onto the old
-        # one.
-        data = data.copy()
-
-        # The result is a copy with replacement data.
-        return self.copy(data=data)
-
-    def copy(self, data=None):
-        """
-        Returns a copy of this CellMeasure.
-
-        Kwargs:
-
-        * data: A data array for the new cell_measure.
-                This may be a different shape to the data of the
-                cell_measure being copied.
-
-        """
-        new_cell_measure = copy.deepcopy(self)
-        if data is not None:
-            # Remove the existing data manager, to prevent the data setter
-            # checking against existing content.
-            new_cell_measure._data_manager = None
-            # Set new data via the data setter code, which applies standard
-            # checks and ajustments.
-            new_cell_measure.data = data
-
-        return new_cell_measure
-
-    def _repr_other_metadata(self):
-        fmt = ''
-        if self.long_name:
-            fmt = ', long_name={self.long_name!r}'
-        if self.var_name:
-            fmt += ', var_name={self.var_name!r}'
-        if len(self.attributes) > 0:
-            fmt += ', attributes={self.attributes}'
-        result = fmt.format(self=self)
-        return result
-
-    def __str__(self):
-        result = repr(self)
-        return result
 
     def __repr__(self):
         fmt = ('{cls}({self.data!r}'
@@ -2180,23 +2225,8 @@ class CellMeasure(six.with_metaclass(ABCMeta, CFVariableMixin)):
         return result
 
     def _as_defn(self):
-        defn = (self.standard_name, self.long_name, self.var_name,
-                self.units, self.attributes, self.measure)
-        return defn
-
-    def __eq__(self, other):
-        eq = NotImplemented
-        if isinstance(other, CellMeasure):
-            eq = self._as_defn() == other._as_defn()
-            if eq:
-                eq = (self.data == other.data).all()
-        return eq
-
-    def __ne__(self, other):
-        result = self.__eq__(other)
-        if result is not NotImplemented:
-            result = not result
-        return result
+        defn = super(CellMeasure, self)._as_defn()
+        return defn + (self.measure,)
 
 
 class CellMethod(iris.util._OrderedHashable):

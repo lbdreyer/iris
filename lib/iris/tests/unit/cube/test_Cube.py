@@ -38,8 +38,10 @@ from iris.analysis import WeightedAggregator, Aggregator
 from iris.analysis import MEAN
 from iris.aux_factory import HybridHeightFactory
 from iris.cube import Cube
-from iris.coords import AuxCoord, DimCoord, CellMeasure
-from iris.exceptions import (CoordinateNotFoundError, CellMeasureNotFoundError,
+from iris.coords import AuxCoord, DimCoord, CellMeasure, AncillaryDataset
+from iris.exceptions import (CoordinateNotFoundError,
+                             AncillaryDatasetNotFoundError,
+                             CellMeasureNotFoundError,
                              UnitConversionError)
 from iris._lazy_data import as_lazy_data
 from iris.tests import mock
@@ -1582,6 +1584,14 @@ class Test_add_metadata(tests.IrisTest):
         cube.add_aux_coord(x_coord, [0, 1])
         self.assertEqual(cube.coord('x'), x_coord)
 
+    def test_add_ancillary_dataset(self):
+        cube = Cube(np.arange(6).reshape(2, 3))
+        ancillary_data = AncillaryDataset(data=np.arange(6).reshape(2, 3),
+                                          long_name='detection quality')
+        cube.add_ancillary_dataset(ancillary_data, [0, 1])
+        self.assertEqual(cube.ancillary_dataset('detection quality'),
+                         ancillary_data)
+
     def test_add_cell_measure(self):
         cube = Cube(np.arange(6).reshape(2, 3))
         a_cell_measure = CellMeasure(data=np.arange(6).reshape(2, 3),
@@ -1631,6 +1641,10 @@ class Test_remove_metadata(tests.IrisTest):
                                           measure='area')
         cube.add_cell_measure(a_cell_measure, [0, 1])
         cube.add_cell_measure(self.b_cell_measure, [0, 1])
+
+        anciliary_dataset = AncillaryDataset(data=np.arange(6).reshape(2, 3),
+                                             long_name='Quality of Detection')
+        cube.add_ancillary_dataset(anciliary_dataset, [0, 1])
         self.cube = cube
 
     def test_remove_dim_coord(self):
@@ -1640,6 +1654,11 @@ class Test_remove_metadata(tests.IrisTest):
     def test_remove_aux_coord(self):
         self.cube.remove_coord(self.cube.coord('z'))
         self.assertEqual(self.cube.coords('z'), [])
+
+    def test_remove_ancilliary_dataset(self):
+        self.cube.remove_ancillary_dataset(
+            self.cube.ancillary_dataset('Quality of Detection'))
+        self.assertEqual(self.cube._ancillary_datasets_and_dims, [])
 
     def test_remove_cell_measure(self):
         self.cube.remove_cell_measure(self.cube.cell_measure('area'))
