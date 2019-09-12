@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2010 - 2017, Met Office
+# (C) British Crown Copyright 2010 - 2019, Met Office
 #
 # This file is part of Iris.
 #
@@ -315,7 +315,9 @@ class _CoordSignature(namedtuple('CoordSignature',
 
 class _CubeSignature(namedtuple('CubeSignature',
                                 ['defn', 'data_shape', 'data_type',
-                                 'cell_measures_and_dims'])):
+                                 'ancillary_datasets_and_dims',
+                                 'cell_measures_and_dims'
+                                 ])):
     """
     Criterion for identifying a specific type of :class:`iris.cube.Cube`
     based on its metadata.
@@ -330,6 +332,10 @@ class _CubeSignature(namedtuple('CubeSignature',
 
     * data_type:
         The data payload :class:`numpy.dtype` of a :class:`iris.cube.Cube`.
+
+    * ancillary_datasets_and_dims:
+        A list of ancillary_datasets and dims for the cube.
+
 
     * cell_measures_and_dims:
         A list of cell_measures and dims for the cube.
@@ -403,6 +409,9 @@ class _CubeSignature(namedtuple('CubeSignature',
         if self.data_type != other.data_type:
             msg = 'cube data dtype differs: {} != {}'
             msgs.append(msg.format(self.data_type, other.data_type))
+        if self.ancillary_datasets_and_dims != \
+                other.ancillary_datasets_and_dims:
+            msgs.append('cube.ancillary_datasets differ')
         if (self.cell_measures_and_dims != other.cell_measures_and_dims):
             msgs.append('cube.cell_measures differ')
 
@@ -1130,6 +1139,10 @@ class ProtoCube(object):
         self._vector_dim_coords_dims = []
         self._vector_aux_coords_dims = []
 
+        # ancillary datasets are not merge candidates
+        # they are checked and preserved through merge
+        self._ancillary_datasets_and_dims = cube._ancillary_datasets_and_dims
+
         # cell measures are not merge candidates
         # they are checked and preserved through merge
         self._cell_measures_and_dims = cube._cell_measures_and_dims
@@ -1481,11 +1494,14 @@ class ProtoCube(object):
                                for coord, dims in self._aux_coords_and_dims]
         kwargs = dict(zip(iris.cube.CubeMetadata._fields, signature.defn))
 
+        anc_data_and_dims = [(deepcopy(anc_data), dims) for anc_data, dims in
+                             self._ancillary_datasets_and_dims]
         cms_and_dims = [(deepcopy(cm), dims)
                         for cm, dims in self._cell_measures_and_dims]
         cube = iris.cube.Cube(data,
                               dim_coords_and_dims=dim_coords_and_dims,
                               aux_coords_and_dims=aux_coords_and_dims,
+                              ancillary_datasets_and_dims=anc_data_and_dims,
                               cell_measures_and_dims=cms_and_dims,
                               **kwargs)
 
@@ -1607,7 +1623,8 @@ class ProtoCube(object):
         """
 
         return _CubeSignature(cube.metadata, cube.shape,
-                              cube.dtype, cube._cell_measures_and_dims)
+                              cube.dtype, cube._ancillary_datasets_and_dims,
+                              cube._cell_measures_and_dims)
 
     def _add_cube(self, cube, coord_payload):
         """Create and add the source-cube skeleton to the ProtoCube."""

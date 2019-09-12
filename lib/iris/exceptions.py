@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2010 - 2017, Met Office
+# (C) British Crown Copyright 2010 - 2019, Met Office
 #
 # This file is part of Iris.
 #
@@ -35,6 +35,11 @@ class CoordinateCollapseError(IrisError):
 
 class CoordinateNotFoundError(KeyError):
     """Raised when a search yields no coordinates."""
+    pass
+
+
+class AncillaryDatasetNotFoundError(KeyError):
+    """Raised when a search yields no ancillary datasets."""
     pass
 
 
