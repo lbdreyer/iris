@@ -451,7 +451,7 @@ class _DimensionalMetadata(six.with_metaclass(ABCMeta, CFVariableMixin)):
                     _MODE_RDIV: '/'}
 
     def __init__(self, points, standard_name=None, long_name=None,
-                 var_name=None, units='1', attributes=None):
+                 var_name=None, units='no-unit', attributes=None):
 
         """
         Constructs a single dimensional metadata object.
@@ -996,7 +996,7 @@ class Coord(_DimensionalMetadata):
         else:
             bounds = None
 
-        # The new metadata is a copy of the old one with replaced content.
+        # The new coord is a copy of the old one with replaced content.
         new_coord = self.copy(points=points, bounds=bounds)
         return new_coord
 
@@ -1435,7 +1435,6 @@ class Coord(_DimensionalMetadata):
 
         return True
 
-    # TODO can we just remove??
     def is_compatible(self, other, ignore=None):
         """
         Return whether the coordinate is compatible with another.
@@ -2172,6 +2171,17 @@ class AuxCoord(Coord):
     # So we retain :class:`AuxCoord` as a distinct concrete subclass.
     # This provides clarity, backwards compatibility, and so we can add
     # AuxCoord-specific code if needed in future.
+
+
+
+class AncillaryData(_DimensionalMetadata):
+    """
+    A CF Ancillary Data Variable
+
+    There are no specific properties of :class:`AncillaryData`, everything is
+    inherited from _DimensionalMetadata.
+    """
+
 
 
 class CellMeasure(six.with_metaclass(ABCMeta, CFVariableMixin)):

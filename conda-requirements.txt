@@ -1,0 +1,50 @@
+# Python 3 conda configuration
+# Dependencies necessary to run setup.py of iris
+# ----------------------------------------------
+
+setuptools
+pyke
+six
+
+# Absolute minimal dependencies for iris
+# --------------------------------------
+
+# Without these, iris won't even import.
+
+cartopy
+proj4<5
+cf_units>=2
+cftime==1.0.1
+dask
+matplotlib>=2,<3
+netcdf4
+numpy>=1.14
+scipy
+
+# Dependencies needed to run the iris tests
+#------------------------------------------
+
+mock
+nose
+pep8
+filelock
+imagehash>=4.0
+requests
+
+# Dependencies for a feature complete installation
+# ------------------------------------------------
+
+# esmpy regridding not available through pip.
+#gdal : under review -- not tested at present
+mo_pack
+nc-time-axis
+pandas
+python-stratify
+pyugrid
+
+graphviz
+
+# Iris sample data is not available through pip. It can be installed from
+# https://github.com/SciTools/iris-sample-data/archive/master.zip
+iris-sample-data
+
