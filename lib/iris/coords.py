@@ -52,16 +52,13 @@ from iris._cube_coord_common import CFVariableMixin
 from iris.util import points_step
 
 
-class NonCoordDefn():
-    ...
-
-class CoordDefn(namedtuple('CoordDefn',
-                           ['standard_name', 'long_name',
-                            'var_name', 'units',
-                            'attributes', 'coord_system'])):
+class DimensionalMetadataDefn(namedtuple('DimensionalMetadataDefn',
+                                         ['standard_name', 'long_name',
+                                         'var_name', 'units',
+                                        'attributes', 'coord_system'])):
     """
-    Criterion for identifying a specific type of :class:`DimCoord` or
-    :class:`AuxCoord` based on its metadata.
+    Criterion for identifying a specific type of
+    :class:`DimensionalMetadataDefn` based on its metadata.
 
     """
 
@@ -79,8 +76,43 @@ class CoordDefn(namedtuple('CoordDefn',
         return self.standard_name or self.long_name or self.var_name or default
 
     def __lt__(self, other):
+        if not isinstance(other, DimensionalMetadataDefn):
+            return NotImplemented
+
+        def _sort_key(defn):
+            # Emulate Python 2 behaviour with None
+            return (defn.standard_name is not None, defn.standard_name,
+                    defn.long_name is not None, defn.long_name,
+                    defn.var_name is not None, defn.var_name,
+                    defn.units is not None, defn.units,
+#                    defn.coord_system is not None, defn.coord_system)
+
+        return _sort_key(self) < _sort_key(other)
+
+
+class CoordDefn(DimensionalMetadataDefn):
+    """
+    Criterion for identifying a specific type of :class:`DimCoord` or
+    :class:`AuxCoord` based on its metadata.
+
+    """
+    __slots__ = ()
+
+    def __new__(cls, standard_name, long_name, var_name, units, attributes,
+                coord_system):
+        self = super(DimensionalMetadataDefn, cls).__new__(
+            cls, standard_name=standard_name, long_name=long_name,
+            var_name=var_name, units=units, attributes=attributes)
+        self.coord_system = coord_system
+        return self
+
+    def __lt__(self, other):
         if not isinstance(other, CoordDefn):
             return NotImplemented
+
+        result = super(CoordDefn, self).__lt__(other=other)
+
+        # result is true or false
 
         def _sort_key(defn):
             # Emulate Python 2 behaviour with None
@@ -2172,6 +2204,19 @@ class AuxCoord(Coord):
     # So we retain :class:`AuxCoord` as a distinct concrete subclass.
     # This provides clarity, backwards compatibility, and so we can add
     # AuxCoord-specific code if needed in future.
+
+
+class AncillaryData(_DimensionalMetadata):
+    """
+    A CF Ancillary data variable.
+
+    .. note::
+
+        There are currently no specific properties of :class:`AncillaryData`,
+        everything is inherited from :class:`_DimensionalMetadata`.
+
+    # TODO: Fix docstrings
+    """
 
 
 class CellMeasure(six.with_metaclass(ABCMeta, CFVariableMixin)):
