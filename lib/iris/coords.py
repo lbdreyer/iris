@@ -23,7 +23,7 @@ from __future__ import (absolute_import, division, print_function)
 from six.moves import (filter, input, map, range, zip)  # noqa
 import six
 
-from abc import ABCMeta, abstractproperty
+from abc import ABCMeta, abstractproperty, abstractmethod
 from collections import namedtuple
 try:  # Python 3
     from collections.abc import Iterator
@@ -53,6 +53,42 @@ from iris.util import points_step
 
 
 class DimensionalMetadataDefn(namedtuple('DimensionalMetadataDefn',
+                                         ['standard_name', 'long_name',
+                                         'var_name', 'units',
+                                        'attributes'])):
+    """
+    Criterion for identifying a specific type of
+    :class:`DimensionalMetadataDefn` based on its metadata.
+
+    """
+
+    __slots__ = ()
+
+    def name(self, default='unknown'):
+        """
+        Returns a human-readable name.
+
+        First it tries self.standard_name, then it tries the 'long_name'
+        attribute, then the 'var_name' attribute, before falling back to
+        the value of `default` (which itself defaults to 'unknown').
+
+        """
+        return self.standard_name or self.long_name or self.var_name or default
+
+    def __lt__(self, other):
+        if not isinstance(other, DimensionalMetadataDefn):
+            return NotImplemented
+
+        def _sort_key(defn):
+            # Emulate Python 2 behaviour with None
+            return (defn.standard_name is not None, defn.standard_name,
+                    defn.long_name is not None, defn.long_name,
+                    defn.var_name is not None, defn.var_name,
+                    defn.units is not None, defn.units)
+
+        return _sort_key(self) < _sort_key(other)
+
+class CoordDefn(namedtuple('DimensionalMetadataDefn',
                                          ['standard_name', 'long_name',
                                          'var_name', 'units',
                                         'attributes', 'coord_system'])):
@@ -85,44 +121,10 @@ class DimensionalMetadataDefn(namedtuple('DimensionalMetadataDefn',
                     defn.long_name is not None, defn.long_name,
                     defn.var_name is not None, defn.var_name,
                     defn.units is not None, defn.units,
-#                    defn.coord_system is not None, defn.coord_system)
-
-        return _sort_key(self) < _sort_key(other)
-
-
-class CoordDefn(DimensionalMetadataDefn):
-    """
-    Criterion for identifying a specific type of :class:`DimCoord` or
-    :class:`AuxCoord` based on its metadata.
-
-    """
-    __slots__ = ()
-
-    def __new__(cls, standard_name, long_name, var_name, units, attributes,
-                coord_system):
-        self = super(DimensionalMetadataDefn, cls).__new__(
-            cls, standard_name=standard_name, long_name=long_name,
-            var_name=var_name, units=units, attributes=attributes)
-        self.coord_system = coord_system
-        return self
-
-    def __lt__(self, other):
-        if not isinstance(other, CoordDefn):
-            return NotImplemented
-
-        result = super(CoordDefn, self).__lt__(other=other)
-
-        # result is true or false
-
-        def _sort_key(defn):
-            # Emulate Python 2 behaviour with None
-            return (defn.standard_name is not None, defn.standard_name,
-                    defn.long_name is not None, defn.long_name,
-                    defn.var_name is not None, defn.var_name,
-                    defn.units is not None, defn.units,
                     defn.coord_system is not None, defn.coord_system)
 
         return _sort_key(self) < _sort_key(other)
+
 
 
 class CoordExtent(namedtuple('_CoordExtent', ['name_or_coord',
@@ -675,7 +677,6 @@ class _DimensionalMetadata(six.with_metaclass(ABCMeta, CFVariableMixin)):
                                                formatter={'all': str},
                                                **kwargs)
 
-    @abstractmethod
     def _str_get_format(self, points):
         " specific stuff"
         fmt = '{cls}({points}' \
@@ -710,7 +711,6 @@ class _DimensionalMetadata(six.with_metaclass(ABCMeta, CFVariableMixin)):
                             other_metadata=self._repr_other_metadata())
         return result
 
-    @abstractmethod
     def _as_defn(self):
         defn = (self.standard_name, self.long_name, self.var_name,
                 self.units, self.attributes)
@@ -768,7 +768,7 @@ class _DimensionalMetadata(six.with_metaclass(ABCMeta, CFVariableMixin)):
         if isinstance(other, _DimensionalMetadata):
             class_name = self.__class__
             emsg = str(class_name +
-                       _DimensionalMetadata._MODE_SYMBOL[mode_constant]) +
+                       _DimensionalMetadata._MODE_SYMBOL[mode_constant] +
                        class_name)
             raise iris.exceptions.NotYetImplementedError(emsg)
 
@@ -909,7 +909,7 @@ class _DimensionalMetadata(six.with_metaclass(ABCMeta, CFVariableMixin)):
         if self.standard_name:
             element.setAttribute('standard_name', str(self.standard_name))
         if self.long_name:
-            element.setAttribute('long_name', str(self.long_name))extra
+            element.setAttribute('long_name', str(self.long_name))
         if self.var_name:
             element.setAttribute('var_name', str(self.var_name))
         element.setAttribute('units', repr(self.units))
@@ -954,7 +954,7 @@ class _DimensionalMetadata(six.with_metaclass(ABCMeta, CFVariableMixin)):
 
     def _xml_id(self):
         # Returns a consistent, unique string identifier for this coordinate.
-        unqiue_value = self._xml_unique_value
+        unique_value = self._xml_unique_value
 
         # Mask to ensure consistency across Python versions & platforms.
         crc = zlib.crc32(unique_value) & 0xffffffff
@@ -1044,7 +1044,7 @@ class Coord(_DimensionalMetadata):
                   resulting _DimensionalMetadata will have no bounds.
 
         """
-        __doc__ += _DimensionalMetadata.__doc__
+        #__doc__ += _DimensionalMetadata.__doc__
         if points is None and bounds is not None:
             raise ValueError('If bounds are specified, points must also be '
                              'specified')
@@ -1225,7 +1225,7 @@ class Coord(_DimensionalMetadata):
         # _DimensionalMetadata?
         if isinstance(other, Coord):
             emsg = 'coord {} coord'.format(Coord._MODE_SYMBOL[mode_constant])
-        raise iris.exceptions.NotYetImplementedError(emsg))
+            raise iris.exceptions.NotYetImplementedError(emsg)
 
         elif isinstance(other, (int, float, np.number)):
             points = self._points_dm.core_data()
@@ -1268,7 +1268,7 @@ class Coord(_DimensionalMetadata):
                          -self.core_bounds() if self.has_bounds() else None)
 
     def convert_units(self, unit):
-        super(coord, self).convert_units(unit=unit)
+        super(Coord, self).convert_units(unit=unit)
         if self.has_bounds():
             if self.has_lazy_bounds():
                 new_bounds = _lazy.lazy_elementwise(self.lazy_bounds(),
@@ -1491,7 +1491,7 @@ class Coord(_DimensionalMetadata):
 
         """
         compatible = (self.name() == other.name() and
-                      self.units == other.units and)
+                      self.units == other.units)
 
         if compatible:
             common_keys = set(self.attributes).intersection(other.attributes)
@@ -1925,8 +1925,7 @@ class Coord(_DimensionalMetadata):
             extra_elements.append(self.coord_system.xml_element(doc))
 
         element = super(Coord, self).xml_element(doc=doc,
-                                                 extra_elements=extra_elements,
-                                                 bounds=bounds)
+                                                 extra_elements=extra_elements)
 
         if self.has_bounds():
             if hasattr(self.bounds, 'to_xml_attr'):
@@ -2205,7 +2204,7 @@ class AuxCoord(Coord):
     # AuxCoord-specific code if needed in future.
 
 
-class AncillaryData(_DimensionalMetadata):
+class AncillaryDataset(_DimensionalMetadata):
     """
     A CF Ancillary data variable.
 
@@ -2216,6 +2215,9 @@ class AncillaryData(_DimensionalMetadata):
 
     # TODO: Fix docstrings
     """
+    @property
+    def has_bounds(self):
+        return False
 
 
 class CellMeasure(six.with_metaclass(ABCMeta, CFVariableMixin)):
