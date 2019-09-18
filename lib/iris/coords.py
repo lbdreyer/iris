@@ -54,8 +54,7 @@ from iris.util import points_step
 
 class DimensionalMetadataDefn(namedtuple('DimensionalMetadataDefn',
                                          ['standard_name', 'long_name',
-                                         'var_name', 'units',
-                                        'attributes'])):
+                                          'var_name', 'units', 'attributes'])):
     """
     Criterion for identifying a specific type of
     :class:`DimensionalMetadataDefn` based on its metadata.
@@ -88,10 +87,10 @@ class DimensionalMetadataDefn(namedtuple('DimensionalMetadataDefn',
 
         return _sort_key(self) < _sort_key(other)
 
+
 class CoordDefn(namedtuple('DimensionalMetadataDefn',
-                                         ['standard_name', 'long_name',
-                                         'var_name', 'units',
-                                        'attributes', 'coord_system'])):
+                           ['standard_name', 'long_name', 'var_name', 'units',
+                            'attributes', 'coord_system'])):
     """
     Criterion for identifying a specific type of
     :class:`DimensionalMetadataDefn` based on its metadata.
@@ -124,7 +123,6 @@ class CoordDefn(namedtuple('DimensionalMetadataDefn',
                     defn.coord_system is not None, defn.coord_system)
 
         return _sort_key(self) < _sort_key(other)
-
 
 
 class CoordExtent(namedtuple('_CoordExtent', ['name_or_coord',
@@ -697,7 +695,7 @@ class _DimensionalMetadata(six.with_metaclass(ABCMeta, CFVariableMixin)):
                 points = self.points
             else:
                 points = self._str_dates(self.points)
-            result = _str_get_format(self, points)
+            result = self._str_get_format(points)
         else:
             result = repr(self)
         return result
@@ -714,7 +712,7 @@ class _DimensionalMetadata(six.with_metaclass(ABCMeta, CFVariableMixin)):
     def _as_defn(self):
         defn = (self.standard_name, self.long_name, self.var_name,
                 self.units, self.attributes)
-        return NonCoordDefn(*defn)
+        return DimensionalMetadataDefn(*defn)
 
     def __eq__(self, other):
         eq = NotImplemented
@@ -869,7 +867,8 @@ class _DimensionalMetadata(six.with_metaclass(ABCMeta, CFVariableMixin)):
     @property
     def dtype(self):
         """
-        The NumPy dtype of the _DimensionalMetadata, as specified by its points.
+        The NumPy dtype of the _DimensionalMetadata, as specified by its
+        points.
 
         """
         return self._points_dm.dtype
@@ -890,11 +889,11 @@ class _DimensionalMetadata(six.with_metaclass(ABCMeta, CFVariableMixin)):
     @property
     def shape(self):
         """
-        The fundamental shape of the _DimensionalMetadata, expressed as a tuple.
+        The fundamental shape of the _DimensionalMetadata, expressed as a
+        tuple.
 
         """
         return self._points_dm.shape
-
 
     def xml_element(self, doc, extra_elements=[]):
         """Return a DOM element describing this _DimensionalMetadata."""
@@ -980,7 +979,6 @@ class _DimensionalMetadata(six.with_metaclass(ABCMeta, CFVariableMixin)):
                     value_type_name = 'unicode'
         else:
             value_type_name = dtype.name
-
 
         return value_type_name
 
@@ -1068,7 +1066,7 @@ class Coord(_DimensionalMetadata):
                   resulting _DimensionalMetadata will have no bounds.
 
         """
-        #__doc__ += _DimensionalMetadata.__doc__
+        # __doc__ += _DimensionalMetadata.__doc__
         if points is None and bounds is not None:
             raise ValueError('If bounds are specified, points must also be '
                              'specified')
@@ -1967,7 +1965,8 @@ class Coord(_DimensionalMetadata):
         return unique_value
 
     def __hash__(self):
-        # TODO is this really necessary to include it in here as well as parent?
+        # TODO is this really necessary to include it in here as well as
+        # parent?
         return hash(id(self))
 
 

@@ -1586,7 +1586,7 @@ class Test_add_metadata(tests.IrisTest):
 
     def test_add_ancillary_dataset(self):
         cube = Cube(np.arange(6).reshape(2, 3))
-        ancillary_data = AncillaryDataset(data=np.arange(6).reshape(2, 3),
+        ancillary_data = AncillaryDataset(points=np.arange(6).reshape(2, 3),
                                           long_name='detection quality')
         cube.add_ancillary_dataset(ancillary_data, [0, 1])
         self.assertEqual(cube.ancillary_dataset('detection quality'),
@@ -1642,7 +1642,7 @@ class Test_remove_metadata(tests.IrisTest):
         cube.add_cell_measure(a_cell_measure, [0, 1])
         cube.add_cell_measure(self.b_cell_measure, [0, 1])
 
-        anciliary_dataset = AncillaryDataset(data=np.arange(6).reshape(2, 3),
+        anciliary_dataset = AncillaryDataset(points=np.arange(6).reshape(2, 3),
                                              long_name='Quality of Detection')
         cube.add_ancillary_dataset(anciliary_dataset, [0, 1])
         self.cube = cube

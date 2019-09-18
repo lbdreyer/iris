@@ -19,13 +19,6 @@ env:
 
     - PYTHON_VERSION=3.6 TEST_TARGET=default TEST_MINIMAL=true
     - PYTHON_VERSION=3.6 TEST_TARGET=default
-    - PYTHON_VERSION=3.6 TEST_TARGET=example
-    - PYTHON_VERSION=3.6 TEST_TARGET=doctest
-
-    - PYTHON_VERSION=3.7 TEST_TARGET=default TEST_MINIMAL=true
-    - PYTHON_VERSION=3.7 TEST_TARGET=default
-    - PYTHON_VERSION=3.7 TEST_TARGET=example
-    - PYTHON_VERSION=3.7 TEST_TARGET=doctest
 
 git:
   # We need a deep clone so that we can compute the age of the files using their git history.
