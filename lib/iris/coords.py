@@ -954,11 +954,35 @@ class _DimensionalMetadata(six.with_metaclass(ABCMeta, CFVariableMixin)):
 
     def _xml_id(self):
         # Returns a consistent, unique string identifier for this coordinate.
-        unique_value = self._xml_unique_value
-
+        unique_value = self._xml_unique_value()
         # Mask to ensure consistency across Python versions & platforms.
         crc = zlib.crc32(unique_value) & 0xffffffff
         return '%08x' % (crc, )
+
+    def _value_type_name(self):
+        """
+        A simple, readable name for the data type of the _DimensionalMetadata
+        point values.
+        """
+        dtype = self.core_points().dtype
+        kind = dtype.kind
+        if kind in 'SU':
+            # Establish the basic type name for 'string' type data.
+            # N.B. this means "unicode" in Python3, and "str" in Python2.
+            value_type_name = 'string'
+
+            # Override this if not the 'native' string type.
+            if six.PY3:
+                if kind == 'S':
+                    value_type_name = 'bytes'
+            else:
+                if kind == 'U':
+                    value_type_name = 'unicode'
+        else:
+            value_type_name = dtype.name
+
+
+        return value_type_name
 
 
 class Coord(_DimensionalMetadata):
@@ -1937,7 +1961,7 @@ class Coord(_DimensionalMetadata):
         return element
 
     def _xml_unique_value(self):
-        unique_value = super(Coord, self._xml_unique_value())
+        unique_value = super(Coord, self)._xml_unique_value()
         unique_value += str(self.coord_system).encode('utf-8') + b'\0'
         # Mask to ensure consistency across Python versions & platforms.
         return unique_value
