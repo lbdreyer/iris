@@ -950,7 +950,7 @@ class _DimensionalMetadata(six.with_metaclass(ABCMeta, CFVariableMixin)):
         unique_value += str(self.units).encode('utf-8') + b'\0'
         for k, v in sorted(self.attributes.items()):
             unique_value += (str(k) + ':' + str(v)).encode('utf-8') + b'\0'
-            return unique_value
+        return unique_value
 
     def _xml_id(self):
         # Returns a consistent, unique string identifier for this coordinate.
