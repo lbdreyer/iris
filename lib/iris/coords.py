@@ -1942,6 +1942,10 @@ class Coord(_DimensionalMetadata):
         # Mask to ensure consistency across Python versions & platforms.
         return unique_value
 
+    def __hash__(self):
+        # TODO is this really necessary to include it in here as well as parent?
+        return hash(id(self))
+
 
 class DimCoord(Coord):
     """
