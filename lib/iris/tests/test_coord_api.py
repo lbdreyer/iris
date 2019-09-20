@@ -1,4 +1,4 @@
-# (C) British Crown Copyright 2010 - 2017, Met Office
+# (C) British Crown Copyright 2010 - 2019, Met Office
 #
 # This file is part of Iris.
 #
@@ -561,7 +561,7 @@ class TestGetterSetter(tests.IrisTest):
 
         # set bounds from non-numpy pair.
         # First reset the underlying shape of the coordinate.
-        coord._points_dm = DataManager(1)
+        coord._values_dm = DataManager(1)
         coord.points = 1
         coord.bounds = [123, 456]
         self.assertEqual(coord.shape, (1, ))
@@ -569,7 +569,7 @@ class TestGetterSetter(tests.IrisTest):
 
         # set bounds from non-numpy pairs
         # First reset the underlying shape of the coord's points and bounds.
-        coord._points_dm = DataManager(np.arange(3))
+        coord._values_dm = DataManager(np.arange(3))
         coord.bounds = None
         coord.bounds = [[123, 456], [234, 567], [345, 678]]
         self.assertEqual(coord.shape, (3, ))
