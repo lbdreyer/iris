@@ -38,8 +38,9 @@ from iris.analysis import WeightedAggregator, Aggregator
 from iris.analysis import MEAN
 from iris.aux_factory import HybridHeightFactory
 from iris.cube import Cube
-from iris.coords import AuxCoord, DimCoord, CellMeasure
+from iris.coords import AuxCoord, DimCoord, CellMeasure, AncillaryVariable
 from iris.exceptions import (CoordinateNotFoundError, CellMeasureNotFoundError,
+                             AncillaryVariableNotFoundError,
                              UnitConversionError)
 from iris._lazy_data import as_lazy_data
 from iris.tests import mock
@@ -1670,6 +1671,15 @@ class Test_add_metadata(tests.IrisTest):
         cube.add_cell_measure(a_cell_measure, [0, 1])
         self.assertEqual(cube.cell_measure('area'), a_cell_measure)
 
+    def test_add_ancillary_variable(self):
+        cube = Cube(np.arange(6).reshape(2, 3))
+        ancillary_variable = AncillaryVariable(
+            data=np.arange(6).reshape(2, 3),
+            long_name='detection quality')
+        cube.add_ancillary_variable(ancillary_variable, [0, 1])
+        self.assertEqual(cube.ancillary_variable('detection quality'),
+                         ancillary_variable)
+
     def test_add_valid_aux_factory(self):
         cube = Cube(np.arange(8).reshape(2, 2, 2))
         delta = AuxCoord(points=[0, 1], long_name='delta', units='m')
@@ -1712,6 +1722,10 @@ class Test_remove_metadata(tests.IrisTest):
                                           measure='area')
         cube.add_cell_measure(a_cell_measure, [0, 1])
         cube.add_cell_measure(self.b_cell_measure, [0, 1])
+        ancillary_variable = AncillaryVariable(
+            data=np.arange(6).reshape(2, 3),
+            long_name='Quality of Detection')
+        cube.add_ancillary_variable(ancillary_variable, [0, 1])
         self.cube = cube
 
     def test_remove_dim_coord(self):
@@ -1735,6 +1749,11 @@ class Test_remove_metadata(tests.IrisTest):
     def test_fail_remove_cell_measure_by_name(self):
         with self.assertRaises(CellMeasureNotFoundError):
             self.cube.remove_cell_measure('notarea')
+
+    def test_remove_ancilliary_variable(self):
+        self.cube.remove_ancillary_variable(
+            self.cube.ancillary_variable('Quality of Detection'))
+        self.assertEqual(self.cube._ancillary_variables_and_dims, [])
 
 
 class Test__getitem_CellMeasure(tests.IrisTest):
