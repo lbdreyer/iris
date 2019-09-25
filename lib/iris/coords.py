@@ -475,7 +475,11 @@ class _DimensionalMetadata(six.with_metaclass(ABCMeta, CFVariableMixin)):
         Returns a new _DimensionalMetadata whose values are obtained by
         conventional array indexing.
 
-        Abstract method: requires a self.copy()
+        .. note::
+
+            Indexing of a circular coordinate results in a non-circular
+            coordinate if the overall shape of the coordinate changes after
+            indexing.
 
         """
         # Fetch the values.
@@ -488,7 +492,26 @@ class _DimensionalMetadata(six.with_metaclass(ABCMeta, CFVariableMixin)):
         # Copy values after indexing to avoid making metadata that is a
         # view on another metadata.
         values = values.copy()
-        return values
+
+        # If the metadata is a coordinate and it has bounds, repeat the above
+        # with the bounds.
+        if isinstance(self, Coord):
+            if self.has_bounds():
+                bounds = self._bounds_dm.core_data()
+                _, bounds = iris.util._slice_data_with_keys(
+                bounds, keys)
+                bounds = bounds.copy()
+            else:
+                bounds = None
+
+            copy_args = dict(points=values, bounds=bounds)
+        else:
+            copy_args = dict(values=values)
+
+        # The new metadata is a copy of the old one with replaced content.
+        new_metadata = self.copy(**copy_args)
+
+        return new_metadata
 
     def copy(self, values=None):
         new_metadata = copy.deepcopy(self)
@@ -579,7 +602,7 @@ class _DimensionalMetadata(six.with_metaclass(ABCMeta, CFVariableMixin)):
 
     def __str__(self):
         if self.units.is_time_reference():
-            fmt = '{cls}({values}' \
+            fmt = '{cls}({values}{bounds}' \
                   ', standard_name={self.standard_name!r}' \
                   ', calendar={self.units.calendar!r}{other_metadata})'
             if self.units.is_long_time_interval():
@@ -589,20 +612,34 @@ class _DimensionalMetadata(six.with_metaclass(ABCMeta, CFVariableMixin)):
                 values = self._values
             else:
                 values = self._str_dates(self._values)
+
+            # if coordinate, handle the bounds
+            bounds = ''
+            if self.has_bounds():
+                if self.units.is_long_time_interval():
+                    bounds_vals = self.bounds
+                else:
+                    bounds_vals = self._str_dates(self.bounds)
+                bounds = ', bounds={vals}'.format(vals=bounds_vals)
             result = fmt.format(self=self, cls=type(self).__name__,
-                                values=values,
+                                values=values, bounds=bounds
                                 other_metadata=self._repr_other_metadata())
         else:
             result = repr(self)
         return result
 
-    def __repr__(self):
-        fmt = '{cls}({self._values!r}' \
-              ', standard_name={self.standard_name!r}, units={self.units!r}' \
-              '{other_metadata})'
-        result = fmt.format(self=self, cls=type(self).__name__,
-                            other_metadata=self._repr_other_metadata())
-        return result
+        def __repr__(self):
+            fmt = '{cls}({self.points!r}{bounds}' \
+                  ', standard_name={self.standard_name!r}, units={self.units!r}' \
+                  '{other_metadata})'
+            bounds = ''
+            # if coordinate, handle the bounds
+            if self.has_bounds():
+                bounds = ', bounds=' + repr(self.bounds)
+            result = fmt.format(self=self, cls=type(self).__name__,
+                                bounds=bounds,
+                                other_metadata=self._repr_other_metadata())
+            return result
 
     def __eq__(self, other):
         eq = NotImplemented
@@ -673,7 +710,7 @@ class _DimensionalMetadata(six.with_metaclass(ABCMeta, CFVariableMixin)):
             elif mode_constant == self._MODE_RDIV:
                 new_values = other / values
 
-            result = new_values
+            result = self.copy(new_values)
 
         return result
 
@@ -717,21 +754,23 @@ class _DimensionalMetadata(six.with_metaclass(ABCMeta, CFVariableMixin)):
             raise iris.exceptions.UnitConversionError(
                 'Cannot convert from unknown units. '
                 'The "coord.units" attribute may be set directly.')
-        if self.has_lazy_points() or self.has_lazy_bounds():
-            # Make fixed copies of old + new units for a delayed conversion.
-            old_unit = self.units
-            new_unit = unit
 
-            # Define a delayed conversion operation (i.e. a callback).
-            def pointwise_convert(values):
-                return old_unit.convert(values, new_unit)
+        # Set up a delayed conversion for use if either values or bounds (if
+        # present) are lazy.
+        # Make fixed copies of old + new units for a delayed conversion.
+        old_unit = self.units
+        new_unit = unit
 
-        if self.has_lazy_points():
-            new_points = _lazy.lazy_elementwise(self.lazy_points(),
+        # Define a delayed conversion operation (i.e. a callback).
+        def pointwise_convert(values):
+            return old_unit.convert(values, new_unit)
+
+        if self._has_lazy_values():
+            new_values = _lazy.lazy_elementwise(self._lazy_values(),
                                                 pointwise_convert)
         else:
-            new_points = self.units.convert(self.points, unit)
-        self.points = new_points
+            new_values = self.units.convert(self.points, unit)
+        self._values = new_values
         if self.has_bounds():
             if self.has_lazy_bounds():
                 new_bounds = _lazy.lazy_elementwise(self.lazy_bounds(),
@@ -826,6 +865,17 @@ class _DimensionalMetadata(six.with_metaclass(ABCMeta, CFVariableMixin)):
         element.setAttribute('value_type', str(self._value_type_name()))
         element.setAttribute('shape', str(self.shape))
 
+        # The values are referred to "points" of a coordinate and "data"
+        # otherwise.
+        if isinstance(self, Coord):
+            values_term = 'points'
+        else:
+            values_term = 'data'
+        if hasattr(self._values, 'to_xml_attr'):
+            element.setAttribute(values_term, self._values.to_xml_attr())
+        else:
+            element.setAttribute(values_term,
+                                 iris.util.format_array(self._values))
         return element
 
     def _xml_id_extra(self, unique_value):
@@ -884,13 +934,6 @@ class AncillaryVariable(_DimensionalMetadata):
             long_name=long_name, var_name=var_name,
             units=units, attributes=attributes)
 
-    def __getitem__(self, keys):
-        values = super(AncillaryVariable, self).__getitem__(keys=keys)
-        # The new ancillary data is a copy of the old one with replaced
-        # content.
-        new_anc_data = self.copy(values=values)
-        return new_anc_data
-
     def lazy_data(self):
         return super(AncillaryVariable, self)._lazy_values()
 
@@ -899,27 +942,6 @@ class AncillaryVariable(_DimensionalMetadata):
 
     def has_lazy_data(self):
         return super(AncillaryVariable, self)._has_lazy_values()
-
-    def __binary_operator__(self, other, mode_constant):
-        result = super(AncillaryVariable, self).__binary_operator__(
-            other=other, mode_constant=mode_constant)
-        if result is not NotImplemented:
-            new_values = result
-            result = self.copy(new_values)
-        return result
-
-    def xml_element(self, doc):
-        """Return a DOM element describing this AncillaryData."""
-        # Create the XML element as the camelCaseEquivalent of the
-        # class nam
-        element = super(AncillaryVariable, self).xml_element(doc=doc)
-
-        if hasattr(self._values, 'to_xml_attr'):
-            element.setAttribute('data', self._values.to_xml_attr())
-        else:
-            element.setAttribute('data', iris.util.format_array(self._values))
-
-        return element
 
     def _data_getter(self):
         return self._values
@@ -1042,43 +1064,21 @@ class Coord(_DimensionalMetadata):
         self._bounds_dm = None
         self.bounds = bounds
 
-    def __getitem__(self, keys):
-        """
-        Returns a new Coord whose values are obtained by conventional array
-        indexing.
-
-        .. note::
-
-            Indexing of a circular coordinate results in a non-circular
-            coordinate if the overall shape of the coordinate changes after
-            indexing.
-
-        """
-        points = super(Coord, self).__getitem__(keys=keys)
-
-        if self.has_bounds():
-            # Fetch the bounds.
-            bounds = self._bounds_dm.core_data()
-        else:
-            bounds = None
-
-        # TODO Do these ever return None?
-
-        # Index both points and bounds with the keys.
-        if bounds is not None:
-            _, bounds = iris.util._slice_data_with_keys(
-                bounds, keys)
-
-        # Copy data after indexing, to avoid making coords that are
-        # views on other coords.  This will not realise lazy data.
-        if bounds is not None:
-            bounds = bounds.copy()
-
-        # The new coordinate is a copy of the old one with replaced content.
-        new_coord = self.copy(points=points, bounds=bounds)
-        return new_coord
-
     def copy(self, points=None, bounds=None):
+        """
+        Returns a copy of this coordinate.
+        Kwargs:
+        * points: A points array for the new coordinate.
+                  This may be a different shape to the points of the coordinate
+                  being copied.
+        * bounds: A bounds array for the new coordinate.
+                  Given n bounds for each cell, the shape of the bounds array
+                  should be points.shape + (n,). For example, a 1d coordinate
+                  with 100 points and two bounds per cell would have a bounds
+                  array of shape (100, 2).
+        .. note:: If the points argument is specified and bounds are not, the
+                  resulting coordinate will have no bounds.
+        """
         if points is None and bounds is not None:
             raise ValueError('If bounds are specified, points must also be '
                              'specified')
@@ -1090,7 +1090,7 @@ class Coord(_DimensionalMetadata):
             # self.
             new_coord.bounds = bounds
 
-        return new_coord
+    return new_coord
 
     @classmethod
     def from_coord(cls, coord):
@@ -1228,45 +1228,6 @@ class Coord(_DimensionalMetadata):
             result += ', coord_system={}'.format(self.coord_system)
         return result
 
-    def __str__(self):
-        if self.units.is_time_reference():
-            fmt = '{cls}({points}{bounds}' \
-                  ', standard_name={self.standard_name!r}' \
-                  ', calendar={self.units.calendar!r}{other_metadata})'
-            if self.units.is_long_time_interval():
-                # A time unit with a long time interval ("months" or "years")
-                # cannot be converted to a date using `num2date` so gracefully
-                # fall back to printing points as numbers, not datetimes.
-                points = self.points
-            else:
-                points = self._str_dates(self.points)
-            bounds = ''
-            if self.has_bounds():
-                if self.units.is_long_time_interval():
-                    bounds_vals = self.bounds
-                else:
-                    bounds_vals = self._str_dates(self.bounds)
-                bounds = ', bounds={vals}'.format(vals=bounds_vals)
-            result = fmt.format(self=self, cls=type(self).__name__,
-                                points=points, bounds=bounds,
-                                other_metadata=self._repr_other_metadata())
-        else:
-            result = repr(self)
-
-        return result
-
-    def __repr__(self):
-        fmt = '{cls}({self.points!r}{bounds}' \
-              ', standard_name={self.standard_name!r}, units={self.units!r}' \
-              '{other_metadata})'
-        bounds = ''
-        if self.has_bounds():
-            bounds = ', bounds=' + repr(self.bounds)
-        result = fmt.format(self=self, cls=type(self).__name__,
-                            bounds=bounds,
-                            other_metadata=self._repr_other_metadata())
-        return result
-
     def __eq__(self, other):
         eq = super(Coord, self).__eq__(other=other)
 
@@ -1275,8 +1236,7 @@ class Coord(_DimensionalMetadata):
                 eq = iris.util.array_equal(self.bounds, other.bounds,
                                            withnans=True)
             else:
-                eq = self.bounds is None and other.bounds is None
-
+                eq = self.bounds is None and other.bounds is N
         return eq
 
     def _as_defn(self):
@@ -1299,12 +1259,10 @@ class Coord(_DimensionalMetadata):
                 self._MODE_SYMBOL[mode_constant])
             raise iris.exceptions.NotYetImplementedError(emsg)
 
-        result = super(Coord, self).__binary_operator__(
+        new_coord = super(Coord, self).__binary_operator__(
             other=other, mode_constant=mode_constant)
 
-        if result is not NotImplemented:
-            new_points = result
-
+        if new_coord is not NotImplemented:
             if self.has_bounds():
                 bounds = self._bounds_dm.core_data()
 
@@ -1321,58 +1279,12 @@ class Coord(_DimensionalMetadata):
 
             else:
                 new_bounds = None
-            result = self.copy(new_points, new_bounds)
-        return result
+            new_coord.bounds = new_bounds
+        return new_coord
 
     def __neg__(self):
         return self.copy(-self.core_points(),
                          -self.core_bounds() if self.has_bounds() else None)
-
-    def convert_units(self, unit):
-        """
-        Change the coordinate's units, converting the values in its points
-        and bounds arrays.
-
-        For example, if a coordinate's :attr:`~iris.coords.Coord.units`
-        attribute is set to radians then::
-
-            coord.convert_units('degrees')
-
-        will change the coordinate's
-        :attr:`~iris.coords.Coord.units` attribute to degrees and
-        multiply each value in :attr:`~iris.coords.Coord.points` and
-        :attr:`~iris.coords.Coord.bounds` by 180.0/:math:`\pi`.
-
-        """
-        # If the coord has units convert the values in points (and bounds if
-        # present).
-        if self.units.is_unknown():
-            raise iris.exceptions.UnitConversionError(
-                'Cannot convert from unknown units. '
-                'The "coord.units" attribute may be set directly.')
-        if self.has_lazy_points() or self.has_lazy_bounds():
-            # Make fixed copies of old + new units for a delayed conversion.
-            old_unit = self.units
-            new_unit = unit
-
-            # Define a delayed conversion operation (i.e. a callback).
-            def pointwise_convert(values):
-                return old_unit.convert(values, new_unit)
-
-        if self.has_lazy_points():
-            new_points = _lazy.lazy_elementwise(self.lazy_points(),
-                                                pointwise_convert)
-        else:
-            new_points = self.units.convert(self.points, unit)
-        self.points = new_points
-        if self.has_bounds():
-            if self.has_lazy_bounds():
-                new_bounds = _lazy.lazy_elementwise(self.lazy_bounds(),
-                                                    pointwise_convert)
-            else:
-                new_bounds = self.units.convert(self.bounds, unit)
-            self.bounds = new_bounds
-        self.units = unit
 
     def cells(self):
         """
