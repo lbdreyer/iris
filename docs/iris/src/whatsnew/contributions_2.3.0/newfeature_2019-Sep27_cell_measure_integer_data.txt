@@ -1,0 +1,1 @@
+* Loading CellMeasures with integer values is now supported.

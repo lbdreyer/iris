@@ -2,7 +2,7 @@
 <cubes xmlns="urn:x-iris:cubeml-0.2">
   <cube dtype="float64" long_name="Temperature" standard_name="sea_water_potential_temperature" units="degC" var_name="votemper">
     <attributes>
-      <attribute name="Conventions" value="CF-1.1"/>
+      <attribute name="Conventions" value="CF-1.7"/>
       <attribute name="DOMAIN_DIM_N001" value="x"/>
       <attribute name="DOMAIN_DIM_N002" value="y"/>
       <attribute name="DOMAIN_DIM_N003" value="ncorners"/>

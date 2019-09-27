@@ -2,7 +2,7 @@
 <cubes xmlns="urn:x-iris:cubeml-0.2">
   <cube dtype="float32" long_name="toa_brightness_temperature" standard_name="toa_brightness_temperature" units="K" var_name="data">
     <attributes>
-      <attribute name="Conventions" value="CF-1.5"/>
+      <attribute name="Conventions" value="CF-1.7"/>
       <attribute name="Note" value="This dataset is for test purposes only"/>
       <attribute name="acknowledgement" value="EUMETSAT"/>
       <attribute name="creator_email" value="sat_systems@metoffice.gov.uk"/>

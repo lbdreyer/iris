@@ -2,7 +2,7 @@
 <cubes xmlns="urn:x-iris:cubeml-0.2">
   <cube dtype="float64" long_name="Carbon Dioxide" units="kg kg**-1" var_name="co2">
     <attributes>
-      <attribute name="Conventions" value="CF-1.0"/>
+      <attribute name="Conventions" value="CF-1.7"/>
       <attribute name="history" value="2009-08-25 13:46:31 GMT by mars2netcdf-0.92"/>
     </attributes>
     <coords>
@@ -28,7 +28,7 @@
   </cube>
   <cube dtype="float64" long_name="Logarithm of surface pressure" units="no_unit" var_name="lnsp">
     <attributes>
-      <attribute name="Conventions" value="CF-1.0"/>
+      <attribute name="Conventions" value="CF-1.7"/>
       <attribute name="history" value="2009-08-25 13:46:31 GMT by mars2netcdf-0.92"/>
     </attributes>
     <coords>

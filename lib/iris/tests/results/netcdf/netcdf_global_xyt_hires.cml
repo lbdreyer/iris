@@ -2,7 +2,7 @@
 <cubes xmlns="urn:x-iris:cubeml-0.2">
   <cube dtype="float32" long_name="Zonal Surface Wind Speed" standard_name="eastward_wind" units="m s-1" var_name="uas">
     <attributes>
-      <attribute name="Conventions" value="CF-1.0"/>
+      <attribute name="Conventions" value="CF-1.7"/>
       <attribute name="cmor_version" value="0.96"/>
       <attribute name="comment" value="This run was initiated from the end of the corresponding 20C3M run of CCSR/NIES/FRCGC (the same resolution as this run, realization = 1). The conditions including GHGs concentration and various aerosols emissions were changed according to the IPCC SRES A1B scenario in the course of this run."/>
       <attribute name="contact" value="Seita Emori (emori@nies.go.jp)"/>
