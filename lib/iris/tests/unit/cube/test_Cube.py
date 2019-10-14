@@ -1905,6 +1905,14 @@ class Test_transpose(tests.IrisTest):
         self.assertEqual(self.cube._cell_measures_and_dims,
                          [(area_cm, (2, 0))])
 
+    def test_ancillary_variables(self):
+        ancill_var = AncillaryVariable(data=np.arange(8).reshape(2, 4),
+                                       long_name='instrument error')
+        self.cube.add_ancillary_variable(ancill_var, (1, 2))
+        self.cube.transpose()
+        self.assertEqual(self.cube._ancillary_variables_and_dims,
+                         [(ancill_var, (2, 1))])
+
 
 class Test_convert_units(tests.IrisTest):
     def test_convert_unknown_units(self):

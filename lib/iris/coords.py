@@ -417,7 +417,7 @@ class _DimensionalMetadata(six.with_metaclass(ABCMeta, CFVariableMixin)):
         if self.units.is_unknown():
             raise iris.exceptions.UnitConversionError(
                 'Cannot convert from unknown units. '
-                'The "coord.units" attribute may be set directly.')
+                'The ".units" attribute may be set directly.')
 
         # Set up a delayed conversion for use if either values or bounds (if
         # present) are lazy.
@@ -636,10 +636,9 @@ class AncillaryVariable(_DimensionalMetadata):
     def _data(self):
         return self._values
 
-    @property.setter
+    @_data.setter
     def _data(self, data):
         self._values_setter(values=data)
-
 
     def lazy_data(self):
         """
@@ -1133,7 +1132,7 @@ class Cell(namedtuple('Cell', ['point', 'bound'])):
 
 class Coord(_DimensionalMetadata):
     """
-    Abstract superclass for coordinates.
+    Superclass for coordinates.
 
     """
     def __init__(self, points, standard_name=None, long_name=None,
@@ -2135,21 +2134,6 @@ class Coord(_DimensionalMetadata):
         return unique_value
 
 
-class AuxCoord(Coord):
-    """
-    A CF auxiliary coordinate.
-    .. note::
-        There are currently no specific properties of :class:`AuxCoord`,
-        everything is inherited from :class:`Coord`.
-    """
-    # Logically, :class:`Coord` is an abstract class and all actual coords must
-    # be members of some concrete subclass, i.e. an :class:`AuxCoord` or
-    # a :class:`DimCoord`.
-    # So we retain :class:`AuxCoord` as a distinct concrete subclass.
-    # This provides clarity, backwards compatibility, and so we can add
-    # AuxCoord-specific code if needed in future.
-
-
 class DimCoord(Coord):
     """
     A coordinate that is 1D, numeric, and strictly monotonic.
@@ -2414,6 +2398,24 @@ class DimCoord(Coord):
         if self.circular:
             element.setAttribute('circular', str(self.circular))
         return element
+
+
+class AuxCoord(Coord):
+    """
+    A CF auxiliary coordinate.
+
+    .. note::
+
+        There are currently no specific properties of :class:`AuxCoord`,
+        everything is inherited from :class:`Coord`.
+
+    """
+    # Logically, :class:`Coord` is an abstract class and all actual coords must
+    # be members of some concrete subclass, i.e. an :class:`AuxCoord` or
+    # a :class:`DimCoord`.
+    # So we retain :class:`AuxCoord` as a distinct concrete subclass.
+    # This provides clarity, backwards compatibility, and so we can add
+    # AuxCoord-specific code if needed in future.
 
 
 class CellMethod(iris.util._OrderedHashable):
