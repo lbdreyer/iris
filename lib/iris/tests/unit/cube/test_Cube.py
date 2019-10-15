@@ -1786,6 +1786,50 @@ class Test__getitem_CellMeasure(tests.IrisTest):
                          result.cell_measures()[0].data.shape)
 
 
+class TestAncillaryVariables(tests.IrisTest):
+    def setUp(self):
+        cube = Cube(10 * np.arange(6).reshape(2, 3))
+        self.ancill_var = AncillaryVariable(
+            np.arange(6).reshape(2, 3),
+            standard_name='number_of_observations', units='1')
+        cube.add_ancillary_variable(self.ancill_var, [0, 1])
+        self.cube = cube
+
+    def test_get_ancillary_variable(self):
+        ancill_var = self.cube.ancillary_variable('number_of_observations')
+        self.assertEqual(ancill_var, self.ancill_var)
+
+    def test_get_ancillary_variables(self):
+        ancill_vars = self.cube.ancillary_variables('number_of_observations')
+        self.assertEqual(len(ancill_vars), 1)
+        self.assertEqual(ancill_vars[0], self.ancill_var)
+
+    def test_get_ancillary_variable_obj(self):
+        ancill_vars = self.cube.ancillary_variables(self.ancill_var)
+        self.assertEqual(len(ancill_vars), 1)
+        self.assertEqual(ancill_vars[0], self.ancill_var)
+
+    def test_fail_get_ancillary_variables(self):
+        with self.assertRaises(AncillaryVariableNotFoundError):
+            ancill_var = self.cube.ancillary_variable('other_ancill_var')
+
+    def test_fail_get_ancillary_variables_obj(self):
+        ancillary_variable = self.ancill_var.copy()
+        ancillary_variable.long_name = 'Number of observations at site'
+        with self.assertRaises(AncillaryVariableNotFoundError):
+            ancill_vars = self.cube.ancillary_variable(ancillary_variable)
+
+    def test_ancillary_variable_dims(self):
+        ancill_var_dims = self.cube.ancillary_variable_dims(self.ancill_var)
+        self.assertEqual(ancill_var_dims, (0, 1))
+
+    def test_fail_ancill_variable_dims(self):
+        ancillary_variable = self.ancill_var.copy()
+        ancillary_variable.long_name = 'Number of observations at site'
+        with self.assertRaises(AncillaryVariableNotFoundError):
+            ancill_vars = self.cube.ancillary_variable_dims(ancillary_variable)
+
+
 class TestCellMeasures(tests.IrisTest):
     def setUp(self):
         cube = Cube(np.arange(6).reshape(2, 3))

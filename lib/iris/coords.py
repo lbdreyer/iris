@@ -189,13 +189,8 @@ class _DimensionalMetadata(six.with_metaclass(ABCMeta, CFVariableMixin)):
             result = np.require(src, requirements='W')
             # Ensure the array has enough dimensions.
             # NB. Returns the *same object* if result.ndim >= ndmin
-            # Coords do not preserve masks of input points.
-            if isinstance(src, np.ma.MaskedArray) and not \
-                    isinstance(self, Coord):
-                array_func = np.ma.array
-            else:
-                array_func = np.array
-            result = array_func(result, ndmin=ndmin, copy=False)
+            func = ma.array if ma.isMaskedArray(result) else np.array
+            result = func(result, ndmin=ndmin, copy=False)
             # We don't need to copy the data, but we do need to have our
             # own view so we can control the shape, etc.
             result = result.view()
@@ -484,7 +479,6 @@ class _DimensionalMetadata(six.with_metaclass(ABCMeta, CFVariableMixin)):
         """
         return self._values_dm.ndim
 
-    @property
     def has_bounds(self):
         """
         Return a boolean indicating whether the current dimensional metadata
@@ -603,7 +597,7 @@ class _DimensionalMetadata(six.with_metaclass(ABCMeta, CFVariableMixin)):
 
 class AncillaryVariable(_DimensionalMetadata):
     def __init__(self, data, standard_name=None, long_name=None,
-                 var_name=None, units='1', attributes=None):
+                 var_name=None, units='no-unit', attributes=None):
         """
         Constructs a single ancillary variable.
 
@@ -633,12 +627,12 @@ class AncillaryVariable(_DimensionalMetadata):
             units=units, attributes=attributes)
 
     @property
-    def _data(self):
+    def data(self):
         return self._values
 
-    @_data.setter
-    def _data(self, data):
-        self._values_setter(values=data)
+    @data.setter
+    def data(self, data):
+        self._values = data
 
     def lazy_data(self):
         """

@@ -1299,7 +1299,7 @@ bound=(1994-12-01 00:00:00, 1998-12-01 00:00:00)
 
         return matches[0]
 
-    def ancillary_variables_dims(self, ancillary_variable):
+    def ancillary_variable_dims(self, ancillary_variable):
         """
         Returns a tuple of the data dimensions relevant to the given
         AncillaryVariable.
@@ -2097,11 +2097,10 @@ bound=(1994-12-01 00:00:00, 1998-12-01 00:00:00)
 
                 # Generate basic textual summary for each vector coordinate
                 # - WITHOUT dimension markers.
-                metadata = (vector_coords + cell_measures +
-                            ancillary_variables)
-                for coord in metadata:
+                for dim_meta in (
+                        vector_coords + cell_measures + ancillary_variables):
                     vector_summary.append('%*s%s' % (
-                        indent, ' ', iris.util.clip_string(coord.name())))
+                        indent, ' ', iris.util.clip_string(dim_meta.name())))
                 min_alignment = min(alignment)
 
                 # Determine whether the cube header requires realignment
@@ -2145,7 +2144,7 @@ bound=(1994-12-01 00:00:00, 1998-12-01 00:00:00)
                     # Generate full textual summary for each vector ancillary
                     # variable - WITH dimension markers.
                     for index, av in enumerate(ancillary_variables):
-                        dims = self.ancillary_variables_dims(av)
+                        dims = self.ancillary_variable_dims(av)
 
                         for dim in range(len(self.shape)):
                             width = alignment[dim] - len(vector_summary[index])
@@ -2198,7 +2197,7 @@ bound=(1994-12-01 00:00:00, 1998-12-01 00:00:00)
                 summary += '\n'.join(cell_measure_summary)
 
             #
-            # Generate summary of cube ancillary datasets attribute
+            # Generate summary of cube ancillary variables attribute
             #
             if vector_ancillary_variables:
                 ancillary_variable_summary, cube_header = vector_summary(
