@@ -4,6 +4,7 @@
 # esmpy regridding not available through pip.
 #conda: esmpy>=7.0
 #gdal : under review -- not tested at present
+iris-grib
 mo_pack
 nc-time-axis
 pandas
