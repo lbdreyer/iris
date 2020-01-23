@@ -20,12 +20,14 @@ class Test_Linear(tests.IrisTest):
 
     def test___init__(self):
         linear = Linear(extrapolation_mode=self.extrap)
+        self.assertEqual(0, 1)
         self.assertEqual(
             getattr(linear, "extrapolation_mode", None), self.extrap
         )
 
     @mock.patch("iris.analysis.LinearInterpolator", name="LinearInterpolator")
     def test_interpolator(self, linear_interp_patch):
+        self.assertEqual(1, 2)
         mock_interpolator = mock.Mock(name="mocked linear interpolator")
         linear_interp_patch.return_value = mock_interpolator
 
