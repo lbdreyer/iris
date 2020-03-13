@@ -17,11 +17,9 @@ References:
 from abc import ABCMeta, abstractmethod
 
 from collections.abc import Iterable, MutableMapping
-import os
 import re
 import warnings
 
-import netCDF4
 import numpy as np
 import numpy.ma as ma
 
@@ -1008,8 +1006,12 @@ class CFReader:
 
     """
 
-    def __init__(self, filename, warn=False, monotonic=False):
-        self._filename = os.path.expanduser(filename)
+    def __init__(
+        self, dataset, warn=False, monotonic=False, exclude_var_names=None
+    ):
+        self._dataset = dataset
+        self._filename = dataset.filepath()
+
         # All CF variable types EXCEPT for the "special cases" of
         # CFDataVariable, CFCoordinateVariable and _CFFormulaTermsVariable.
         self._variable_types = (
@@ -1024,8 +1026,6 @@ class CFReader:
 
         #: Collection of CF-netCDF variables associated with this netCDF file
         self.cf_group = CFGroup()
-
-        self._dataset = netCDF4.Dataset(self._filename, mode="r")
 
         # Issue load optimisation warning.
         if warn and self._dataset.file_format in [
@@ -1259,10 +1259,6 @@ class CFReader:
         """Reset the attribute touch history of each variable."""
         for nc_var_name in self._dataset.variables.keys():
             self.cf_group[nc_var_name].cf_attrs_reset()
-
-    def __del__(self):
-        # Explicitly close dataset to prevent file remaining open.
-        self._dataset.close()
 
 
 def _getncattr(dataset, attr, default=None):

@@ -44,6 +44,7 @@ import iris.cube
 import iris.exceptions
 import iris.fileformats.cf
 import iris.fileformats._pyke_rules
+from iris.fileformats._ugrid_cf_reader import UGridCFReader
 import iris.io
 import iris.util
 from iris._lazy_data import as_lazy_data
@@ -778,14 +779,17 @@ def load_cubes(filenames, callback=None):
 
     for filename in filenames:
         # Ingest the netCDF file.
-        cf = iris.fileformats.cf.CFReader(filename)
+        #         ncreader = iris.fileformats.cf.CFReader(filename)
+        ncreader = UGridCFReader(filename)
 
         # Process each CF data variable.
-        data_variables = list(cf.cf_group.data_variables.values()) + list(
-            cf.cf_group.promoted.values()
-        )
+        data_variables = list(
+            ncreader.cfreader.cf_group.data_variables.values()
+        ) + list(ncreader.cfreader.cf_group.promoted.values())
         for cf_var in data_variables:
-            cube = _load_cube(engine, cf, cf_var, filename)
+            cube = _load_cube(engine, ncreader.cfreader, cf_var, filename)
+
+            ncreader.complete_ugrid_cube(cube)
 
             # Process any associated formula terms and attach
             # the corresponding AuxCoordFactory.
