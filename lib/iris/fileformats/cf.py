@@ -1039,6 +1039,7 @@ class CFReader:
 
         self._check_monotonic = monotonic
 
+        self.exclude_var_names = exclude_var_names
         self._translate()
         self._build_cf_groups()
         self._reset()
@@ -1049,14 +1050,20 @@ class CFReader:
     def _translate(self):
         """Classify the netCDF variables into CF-netCDF variables."""
 
-        netcdf_variable_names = list(self._dataset.variables.keys())
+        netcdf_variable_names = [
+            var_name
+            for var_name in self._dataset.variables.keys()
+            if var_name not in self.exclude_var_names
+        ]
 
         # Identify all CF coordinate variables first. This must be done
         # first as, by CF convention, the definition of a CF auxiliary
         # coordinate variable may include a scalar CF coordinate variable,
         # whereas we want these two types of variables to be mutually exclusive.
         coords = CFCoordinateVariable.identify(
-            self._dataset.variables, monotonic=self._check_monotonic
+            self._dataset.variables,
+            ignore=self.exclude_var_names,
+            monotonic=self._check_monotonic,
         )
         self.cf_group.update(coords)
         coordinate_names = list(self.cf_group.coordinates.keys())
@@ -1064,11 +1071,9 @@ class CFReader:
         # Identify all CF variables EXCEPT for the "special cases".
         for variable_type in self._variable_types:
             # Prevent grid mapping variables being mis-identified as CF coordinate variables.
-            ignore = (
-                None
-                if issubclass(variable_type, CFGridMappingVariable)
-                else coordinate_names
-            )
+            ignore = self.exclude_var_names
+            if issubclass(variable_type, CFGridMappingVariable):
+                ignore = (ignore or []) + coordinate_names
             self.cf_group.update(
                 variable_type.identify(self._dataset.variables, ignore=ignore)
             )
@@ -1082,7 +1087,7 @@ class CFReader:
 
         # Identify and register all CF formula terms.
         formula_terms = _CFFormulaTermsVariable.identify(
-            self._dataset.variables
+            self._dataset.variables, ignore=self.exclude_var_names
         )
 
         for cf_var in formula_terms.values():
@@ -1125,10 +1130,9 @@ class CFReader:
             for variable_type in self._variable_types:
                 # Prevent grid mapping variables being mis-identified as
                 # CF coordinate variables.
+                ignore = self.exclude_var_names
                 if issubclass(variable_type, CFGridMappingVariable):
-                    ignore = None
-                else:
-                    ignore = coordinate_names
+                    ignore = (ignore or []) + coordinate_names
                 match = variable_type.identify(
                     self._dataset.variables,
                     ignore=ignore,
@@ -1258,7 +1262,8 @@ class CFReader:
     def _reset(self):
         """Reset the attribute touch history of each variable."""
         for nc_var_name in self._dataset.variables.keys():
-            self.cf_group[nc_var_name].cf_attrs_reset()
+            if nc_var_name not in self.exclude_var_names:
+                self.cf_group[nc_var_name].cf_attrs_reset()
 
 
 def _getncattr(dataset, attr, default=None):
