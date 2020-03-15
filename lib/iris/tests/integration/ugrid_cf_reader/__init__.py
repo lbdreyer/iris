@@ -5,6 +5,6 @@
 # licensing details.
 """
 Integration tests for the
-:mod:`iris.fileformats._structured_array_identification` module.
+:mod:`iris.fileformats._ugrid_cf_reader` package.
 
 """
