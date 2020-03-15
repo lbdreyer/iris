@@ -39,6 +39,22 @@ _UGRID_LINK_PROPERTIES += [
 class CubeUgrid(
     namedtuple("CubeUgrid", ["cube_dim", "grid", "mesh_location"])
 ):
+    """
+    Object recording the unstructured grid dimension of a cube.
+
+    * cube_dim (int):
+        The cube dimension which maps the unstructured grid.
+        There can be only one.
+
+    * grid (`gridded.pyugrid.UGrid`):
+        A 'gridded' description of a UGRID mesh.
+
+    * mesh_location (str):
+        Which element of the mesh the cube is mapped to.
+        Can be 'face', 'edge' or 'node'.  A 'volume' is not supported.
+
+    """
+
     def __str__(self):
         result = "Cube unstructured-grid dimension:"
         result += "\n   cube dimension = {}".format(self.cube_dim)
@@ -133,6 +149,14 @@ class UGridCFReader:
         self.cfreader = CFReader(self.dataset, *args, **kwargs)
 
     def complete_ugrid_cube(self, cube):
+        """
+        Add the ".ugrid" property to a cube loaded with the `self.cfreader`.
+
+        We identify the unstructured-grid dimension of the cube (if any), and
+        attach a suitable CubeUgrid object, linking the cube mesh dimension to
+        an element-type (aka "mesh_location") of a mesh.
+
+        """
         # Set a 'cube.ugrid' property.
         data_var = self.dataset.variables[cube.var_name]
         meshes_info = [
