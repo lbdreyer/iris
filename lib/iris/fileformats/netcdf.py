@@ -753,7 +753,7 @@ def _load_aux_factory(engine, cube):
         cube.add_aux_factory(factory)
 
 
-def load_cubes(filenames, callback=None):
+def load_cubes(filenames, callback=None, *args, **kwargs):
     """
     Loads cubes from a list of NetCDF filenames/URLs.
 
@@ -780,7 +780,7 @@ def load_cubes(filenames, callback=None):
     for filename in filenames:
         # Ingest the netCDF file.
         #         ncreader = iris.fileformats.cf.CFReader(filename)
-        ncreader = UGridCFReader(filename)
+        ncreader = UGridCFReader(filename, *args, **kwargs)
 
         # Process each CF data variable.
         data_variables = list(

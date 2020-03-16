@@ -27,7 +27,7 @@ class TestUgrid(tests.IrisTest):
         # Note: cannot use iris.load, as merge does not yet preserve
         # the cube 'ugrid' properties.
 
-        loaded_cubes = CubeList(load_cubes(fp))
+        loaded_cubes = CubeList(load_cubes(fp, temp_xios_fix=True))
 
         # Here's a thing that at least works.  Just print some details.
         # TODO: write some actual tests later...

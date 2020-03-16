@@ -60,7 +60,10 @@ class CubeUgrid(
         result += "\n   cube dimension = {}".format(self.cube_dim)
         result += '\n   mesh_location = "{}"'.format(self.mesh_location)
         result += '\n   mesh "{}" :\n'.format(self.grid.mesh_name)
-        mesh_str = str(self.grid.info)
+        try:
+            mesh_str = str(self.grid.info)
+        except TypeError:
+            mesh_str = "<unprintable mesh>"
         result += "\n".join(["     " + line for line in mesh_str.split("\n")])
         result += "\n"
         return result
@@ -98,19 +101,21 @@ class UGridCFReader:
         # Generate list of excluded variable names.
         exclude_vars = list(meshes.keys())
 
-        #         # This way *ought* to work, but maybe problems with the test file ?
-        #         for mesh in meshes.values():
-        #             mesh_var = dataset.variables[mesh.mesh_name]
-        #             for attr in mesh_var.ncattrs():
-        #                 if attr in _UGRID_LINK_PROPERTIES:
-        #                     exclude_vars.extend(mesh_var.getncattr(attr).split())
-
-        # A crude and XIOS-specific alternative ..
-        exclude_vars += [
-            name
-            for name in dataset.variables.keys()
-            if any(name.startswith(meshname) for meshname in meshes.keys())
-        ]
+        temp_xios_fix = kwargs.pop("temp_xios_fix", False)
+        if not temp_xios_fix:
+            # This way *ought* to work, but maybe problems with the test file ?
+            for mesh in meshes.values():
+                mesh_var = dataset.variables[mesh.mesh_name]
+                for attr in mesh_var.ncattrs():
+                    if attr in _UGRID_LINK_PROPERTIES:
+                        exclude_vars.extend(mesh_var.getncattr(attr).split())
+        else:
+            # A crude and XIOS-specific alternative ..
+            exclude_vars += [
+                name
+                for name in dataset.variables.keys()
+                if any(name.startswith(meshname) for meshname in meshes.keys())
+            ]
 
         # Identify possible mesh dimensions and make a map of them.
         meshdims_map = {}  # Maps {dimension-name: (mesh, mesh-location)}
