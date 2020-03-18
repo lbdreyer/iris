@@ -68,6 +68,9 @@ class CubeUgrid(
         result += "\n"
         return result
 
+    def name(self):
+        return '.'.join([self.grid.mesh_name, self.mesh_location])
+
 
 class UGridCFReader:
     """
