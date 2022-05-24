@@ -37,6 +37,7 @@ class Test(tests.IrisTest):
     def test_perfect_corr(self):
         r = stats.pearsonr(self.cube_a, self.cube_a, ["latitude", "longitude"])
         self.assertArrayEqual(r.data, np.array([1.0] * 6))
+        self.assertTrue(False)
 
     def test_perfect_corr_all_dims(self):
         r = stats.pearsonr(self.cube_a, self.cube_a)

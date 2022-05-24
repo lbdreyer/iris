@@ -108,7 +108,7 @@ class TestRunner:
         if self.system_tests:
             tests.append("lib/iris/tests/system_test.py")
         if self.default_tests:
-            tests.append("lib/iris/tests")
+            tests.append("lib/iris/tests/unit/analysis/stats")
         if self.coding_tests:
             tests.append("lib/iris/tests/test_coding_standards.py")
         if self.gallery_tests:
