@@ -12,6 +12,7 @@ from abc import ABCMeta, abstractmethod
 from collections import namedtuple
 from collections.abc import Container, Iterator
 import copy
+from functools import lru_cache
 from itertools import chain, zip_longest
 import operator
 import warnings
@@ -1360,7 +1361,9 @@ class Cell(namedtuple("Cell", ["point", "bound"])):
             else:
                 return self.point == other
         elif isinstance(other, Cell):
-            return (self.point == other.point) and (self.bound == other.bound)
+            return (self.point == other.point) and (
+                self.bound == other.bound or self.bound == other.bound[::-1]
+            )
         elif (
             isinstance(other, str)
             and self.bound is None
@@ -2212,12 +2215,24 @@ class Coord(_DimensionalMetadata):
                     "Metadata may not be fully descriptive for {!r}."
                 )
                 warnings.warn(msg.format(self.name()))
-            elif not self.is_contiguous():
-                msg = (
-                    "Collapsing a non-contiguous coordinate. "
-                    "Metadata may not be fully descriptive for {!r}."
-                )
-                warnings.warn(msg.format(self.name()))
+            else:
+                try:
+                    self._sanity_check_bounds()
+                except ValueError as exc:
+                    msg = (
+                        "Cannot check if coordinate is contiguous: {} "
+                        "Metadata may not be fully descriptive for {!r}. "
+                        "Ignoring bounds."
+                    )
+                    warnings.warn(msg.format(str(exc), self.name()))
+                    self.bounds = None
+                else:
+                    if not self.is_contiguous():
+                        msg = (
+                            "Collapsing a non-contiguous coordinate. "
+                            "Metadata may not be fully descriptive for {!r}."
+                        )
+                        warnings.warn(msg.format(self.name()))
 
             if self.has_bounds():
                 item = self.core_bounds()
@@ -2440,7 +2455,9 @@ class Coord(_DimensionalMetadata):
         if self.has_bounds():
             # make bounds ranges complete+separate, so point is in at least one
             increasing = self.bounds[0, 1] > self.bounds[0, 0]
-            bounds = bounds.copy()
+            # identify data type that bounds and point can safely cast to
+            dtype = np.result_type(bounds, point)
+            bounds = bounds.astype(dtype)
             # sort the bounds cells by their centre values
             sort_inds = np.argsort(np.mean(bounds, axis=1))
             bounds = bounds[sort_inds]
@@ -2519,6 +2536,10 @@ class Coord(_DimensionalMetadata):
         return unique_value
 
 
+_regular_points = lru_cache(iris.util.regular_points)
+"""Caching version of iris.util.regular_points"""
+
+
 class DimCoord(Coord):
     """
     A coordinate that is 1D, and numeric, with values that have a strict monotonic ordering. Missing values are not
@@ -2566,12 +2587,9 @@ class DimCoord(Coord):
             bounds values will be defined. Defaults to False.
 
         """
-        points = (zeroth + step) + step * np.arange(count, dtype=np.float32)
-        _, regular = iris.util.points_step(points)
-        if not regular:
-            points = (zeroth + step) + step * np.arange(
-                count, dtype=np.float64
-            )
+        # Use lru_cache because this is done repeatedly with the same arguments
+        # (particularly in field-based file loading).
+        points = _regular_points(zeroth, step, count).copy()
         points.flags.writeable = False
 
         if with_bounds:
@@ -2803,6 +2821,10 @@ class DimCoord(Coord):
             * bounds are not masked, and
             * bounds are monotonic in the first dimension.
 
+        Also reverse the order of the second dimension if necessary to match the
+        first dimension's direction.  I.e. both should increase or both should
+        decrease.
+
         """
         # Ensure the bounds are a compatible shape.
         if self.shape != bounds.shape[:-1] and not (
@@ -2852,6 +2874,16 @@ class DimCoord(Coord):
                         emsg.format(self.name(), self.__class__.__name__)
                     )
 
+                if n_bounds == 2:
+                    # Make ordering of bounds consistent with coord's direction
+                    # if possible.
+                    (direction,) = directions
+                    diffs = bounds[:, 0] - bounds[:, 1]
+                    if np.all(np.sign(diffs) == direction):
+                        bounds = np.flip(bounds, axis=1)
+
+        return bounds
+
     @Coord.bounds.setter
     def bounds(self, bounds):
         if bounds is not None:
@@ -2860,8 +2892,9 @@ class DimCoord(Coord):
             # Make sure we have an array (any type of array).
             bounds = np.asanyarray(bounds)
 
-            # Check validity requirements for dimension-coordinate bounds.
-            self._new_bounds_requirements(bounds)
+            # Check validity requirements for dimension-coordinate bounds and reverse
+            # trailing dimension if necessary.
+            bounds = self._new_bounds_requirements(bounds)
             # Cast to a numpy array for masked arrays with no mask.
             bounds = np.array(bounds)
 
