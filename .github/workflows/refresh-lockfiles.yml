@@ -14,6 +14,6 @@ on:
 
 jobs:
   refresh_lockfiles:
-    uses: lbdreyer/reusable_workflows/.github/workflows/reusable-workflow.yml@main
+    uses: lbdreyer/reusable_workflows/.github/workflows/refresh-lockfiles.yml@main
     
 
