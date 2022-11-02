@@ -47,7 +47,7 @@ jobs:
       - name: install requirements
         run: |
           source $CONDA/bin/activate base
-          conda install -y -c conda-forge conda-libmamba-solver conda-lock libarchive!=3.5.2=hccf745f_1
+          conda install -y -c conda-forge conda-libmamba-solver conda-lock
           ls -l $CONDA/lib/libarchive*
           ls -ls $CONDA/lib/libarchive*
           echo $LD_LIBRARY_PATH
