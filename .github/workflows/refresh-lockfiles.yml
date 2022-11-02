@@ -48,7 +48,10 @@ jobs:
         run: |
           source $CONDA/bin/activate base
           conda install -y -c conda-forge conda-libmamba-solver conda-lock
-          ls $CONDA/lib
+          ls -l $CONDA/lib/libarchive*
+          ls -ls $CONDA/lib/libarchive*
+          echo $LD_LIBRARY_PATH
+          ldd $CONDA/lib/libarchive.so
           conda list
       - name: generate lockfile
         env:
