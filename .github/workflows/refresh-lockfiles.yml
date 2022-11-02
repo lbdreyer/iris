@@ -47,7 +47,7 @@ jobs:
       - name: install requirements
         run: |
           source $CONDA/bin/activate base
-          conda install -y -c conda-forge conda-libmamba-solver conda-lock
+          conda install -y -c conda-forge conda-libmamba-solver conda-lock libarchive=3.5.2=h5de8990_0
           python -c "import libmambapy._version; print(libmambapy._version.__version__)"
           ls -l $CONDA/lib/libarchive*
           ls -ls $CONDA/lib/libarchive*
