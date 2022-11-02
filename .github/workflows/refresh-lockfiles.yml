@@ -48,6 +48,7 @@ jobs:
         run: |
           source $CONDA/bin/activate base
           conda install -y -c conda-forge conda-libmamba-solver conda-lock
+          python -c "import libmambapy._version; print(libmambapy._version.__version__)"
           ls -l $CONDA/lib/libarchive*
           ls -ls $CONDA/lib/libarchive*
           echo $LD_LIBRARY_PATH
