@@ -47,7 +47,8 @@ jobs:
       - name: install requirements
         run: |
           source $CONDA/bin/activate base
-          conda install -y -c conda-forge conda-libmamba-solver conda-lock libarchive>=3.6.1
+          conda install -y -c conda-forge conda-libmamba-solver conda-lock libarchive=3.6.1
+          conda list
       - name: generate lockfile
         env:
           CONDA_EXPERIMENTAL_SOLVER: libmamba
