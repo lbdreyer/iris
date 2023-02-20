@@ -47,6 +47,7 @@ class TestRunner:
             "The number of processors used for running " "the tests.",
         ),
         ("create-missing", "m", "Create missing test result files."),
+        ("coverage", "l", "Enable coverage testing"),
     ]
     boolean_options = [
         "no-data",
@@ -56,6 +57,7 @@ class TestRunner:
         "default-tests",
         "coding-tests",
         "create-missing",
+        "coverage",
     ]
 
     def initialize_options(self):
@@ -67,6 +69,7 @@ class TestRunner:
         self.coding_tests = False
         self.num_processors = None
         self.create_missing = False
+        self.coverage = False
 
     def finalize_options(self):
         # These environment variables will be propagated to all the
@@ -135,6 +138,9 @@ class TestRunner:
 
         if self.stop:
             args.append("-x")
+
+        if self.coverage:
+            args.extend(["--cov=lib/iris", "--cov-report=xml"])
 
         result = True
         for test in tests:
