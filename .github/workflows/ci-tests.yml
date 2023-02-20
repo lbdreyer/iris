@@ -139,7 +139,8 @@ jobs:
           COVERAGE: ${{ matrix.coverage }}
         run: |
           nox --session ${{ matrix.session }} -- --verbose
+          echo ${{ matrix.coverage }}
 
       - name: Upload coverage report
         uses: codecov/codecov-action@v3
-        if: {{ $matrix.coverage }}
+        if: ${{ matrix.coverage }}
