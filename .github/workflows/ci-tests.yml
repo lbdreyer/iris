@@ -35,19 +35,18 @@ jobs:
       fail-fast: false
       matrix:
         os: ["ubuntu-latest"]
-        python-version: ["3.10"]
-        session: ["doctest", "gallery", "linkcheck"]
+        session: ["doc-tests", "doc-linkcheck"]
         include:
           - os: "ubuntu-latest"
-            python-version: "3.10"
-            session: "tests"
-            coverage: "--coverage"
+            session: "py310-linux-tests"
+            posargs: "--coverage"
           - os: "ubuntu-latest"
-            python-version: "3.9"
-            session: "tests"
+            session: "py310-linux-tests"
+            posargs: "--gallery-tests"
           - os: "ubuntu-latest"
-            python-version: "3.8"
-            session: "tests"
+            session: "py39-linux-tests"
+          - os: "ubuntu-latest"
+            session: "py38-linux-tests"
 
     env:
       IRIS_TEST_DATA_VERSION: "2.18"
@@ -134,11 +133,8 @@ jobs:
           cat ${MPL_RC}
 
       - name: "iris ${{ matrix.session }}"
-        env:
-          PY_VER: ${{ matrix.python-version }}
         run: |
-          nox --session ${{ matrix.session }} -- --verbose ${{ matrix.coverage }}
-
+          tox -e ${{ matrix.session }} -- ${{ matrix.posargs }} #TODO: verbose
       - name: Upload coverage report
         uses: codecov/codecov-action@v3
-        if: ${{ matrix.coverage }}
+        if: ${{ matrix.posargs }} # TODO: check if coverage
