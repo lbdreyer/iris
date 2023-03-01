@@ -16,6 +16,7 @@ import iris.tests as tests  # isort:skip
 import cartopy.crs as ccrs
 import numpy as np
 import numpy.ma as ma
+import pytest
 
 from iris.analysis.cartography import rotate_winds, unrotate_pole
 import iris.coord_systems
@@ -343,8 +344,8 @@ class TestRotatedToOSGB(tests.IrisTest):
     def test_magnitude_preservation(self):
         u, v = self._uv_cubes_limited_extent()
         ut, vt = rotate_winds(u, v, iris.coord_systems.OSGB())
-        orig_sq_mag = u.data ** 2 + v.data ** 2
-        res_sq_mag = ut.data ** 2 + vt.data ** 2
+        orig_sq_mag = u.data**2 + v.data**2
+        res_sq_mag = ut.data**2 + vt.data**2
         self.assertArrayAllClose(orig_sq_mag, res_sq_mag, rtol=5e-4)
 
     def test_data_values(self):
@@ -410,7 +411,11 @@ class TestRotatedToOSGB(tests.IrisTest):
 class TestMasking(tests.IrisTest):
     def test_rotated_to_osgb(self):
         # Rotated Pole data with large extent.
-        x = np.linspace(311.9, 391.1, 10)
+        # A 'correct' answer is not known for this test; it is therefore
+        #  written as a 'benchmark' style test - a change in behaviour will
+        #  cause a test failure, requiring developers to approve/reject the
+        #  new behaviour.
+        x = np.linspace(221.9, 301.1, 10)
         y = np.linspace(-23.6, 24.8, 8)
         u, v = uv_cubes(x, y)
         ut, vt = rotate_winds(u, v, iris.coord_systems.OSGB())
@@ -422,14 +427,14 @@ class TestMasking(tests.IrisTest):
         # Snapshot of mask with fixed tolerance of atol=2e-3
         expected_mask = np.array(
             [
-                [1, 1, 1, 0, 0, 0, 0, 0, 0, 1],
-                [1, 1, 1, 0, 0, 0, 0, 0, 0, 1],
-                [1, 1, 1, 1, 0, 0, 0, 0, 1, 1],
-                [1, 1, 1, 1, 0, 0, 0, 0, 1, 1],
-                [1, 1, 1, 1, 0, 0, 0, 0, 1, 1],
-                [1, 1, 1, 1, 1, 0, 0, 1, 1, 1],
-                [1, 1, 1, 1, 1, 0, 0, 1, 1, 1],
-                [1, 1, 1, 1, 1, 0, 0, 1, 1, 1],
+                [0, 0, 0, 1, 1, 1, 0, 0, 0, 1],
+                [0, 0, 0, 0, 1, 1, 1, 0, 1, 1],
+                [0, 0, 0, 0, 0, 1, 1, 1, 1, 1],
+                [0, 0, 0, 0, 1, 1, 1, 0, 0, 0],
+                [0, 0, 0, 1, 1, 1, 1, 1, 0, 0],
+                [0, 1, 1, 1, 1, 1, 1, 0, 0, 0],
+                [0, 1, 1, 1, 0, 1, 1, 1, 0, 0],
+                [0, 1, 0, 0, 0, 0, 1, 1, 1, 0],
             ],
             np.bool_,
         )
@@ -437,13 +442,13 @@ class TestMasking(tests.IrisTest):
         self.assertArrayEqual(expected_mask, vt.data.mask)
 
         # Check unmasked values have sufficiently small error in mag.
-        expected_mag = np.sqrt(u.data ** 2 + v.data ** 2)
+        expected_mag = np.sqrt(u.data**2 + v.data**2)
         # Use underlying data to ignore mask in calculation.
-        res_mag = np.sqrt(ut.data.data ** 2 + vt.data.data ** 2)
+        res_mag = np.sqrt(ut.data.data**2 + vt.data.data**2)
         # Calculate percentage error (note there are no zero magnitudes
         # so we can divide safely).
         anom = 100.0 * np.abs(res_mag - expected_mag) / expected_mag
-        self.assertTrue(anom[~ut.data.mask].max() < 0.1)
+        assert anom[~ut.data.mask].max() == pytest.approx(0.3227935)
 
     def test_rotated_to_unrotated(self):
         # Suffiently accurate so that no mask is introduced.
@@ -491,6 +496,19 @@ class TestRoundTrip(tests.IrisTest):
         ).points
         self.assertArrayAlmostEqual(res_x, x2d)
         self.assertArrayAlmostEqual(res_y, y2d)
+
+
+class TestNonEarthPlanet(tests.IrisTest):
+    def test_non_earth_semimajor_axis(self):
+        u, v = uv_cubes()
+        u.coord("grid_latitude").coord_system = iris.coord_systems.GeogCS(123)
+        u.coord("grid_longitude").coord_system = iris.coord_systems.GeogCS(123)
+        v.coord("grid_latitude").coord_system = iris.coord_systems.GeogCS(123)
+        v.coord("grid_longitude").coord_system = iris.coord_systems.GeogCS(123)
+        other_cs = iris.coord_systems.RotatedGeogCS(
+            0, 0, ellipsoid=iris.coord_systems.GeogCS(123)
+        )
+        rotate_winds(u, v, other_cs)
 
 
 if __name__ == "__main__":
