@@ -136,8 +136,8 @@ This document explains the changes made to Iris for this release
    (:pull:`5101`)
 
 #. `@lbdreyer`_ and `@trexfeathers`_ (reviewer) added coverage testing. This
-   can be enabled by using the "--coverage" flag when running the tests with
-   nox i.e. ``nox --session tests -- --coverage``. (:pull:`4765`)
+   can be enabled when running with tox i.e. ``tox -e py310-tests -- --cov``.
+   (:pull:`4765`)
 
 #. `@lbdreyer`_ and `@trexfeathers`_ (reviewer) removed the ``--coding-tests``
    option from Iris' test runner. (:pull:`4765`)
@@ -154,6 +154,9 @@ This document explains the changes made to Iris for this release
 #. `@bjlittle`_ follow-up to :pull:`4972`, enforced ``dask>=2022.09.0`` minimum
    pin for first use of `dask.array.ma.empty_like`_ and replaced `@tinyendian`_
    workaround. (:pull:`5225`)
+
+# `@lbdreyer`_ replaced nox with tox as the automated test runner.
+  (:pull:`5184`)
 
 
 .. comment

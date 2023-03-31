@@ -48,27 +48,29 @@ def _prep_data_gen_env() -> None:
     """
 
     root_dir = Path(__file__).parents[1]
-    python_version = "3.10"
+    python_version = "310"
     data_gen_var = "DATA_GEN_PYTHON"
     if data_gen_var in environ:
         print("Using existing data generation environment.")
     else:
         print("Setting up the data generation environment ...")
-        # Get Nox to build an environment for the `tests` session, but don't
-        #  run the session. Will re-use a cached environment if appropriate.
+        # Get tox to build an environment. It will re-use a cached environment
+        # if appropriate.
         subprocess.run(
             [
-                "nox",
-                f"--noxfile={root_dir / 'noxfile.py'}",
-                "--session=tests",
-                "--install-only",
-                f"--python={python_version}",
+                "tox",
+                "-c",
+                root_dir,
+                "-e",
+                f"py{python_version}",
             ]
         )
         # Find the environment built above, set it to be the data generation
         #  environment.
         data_gen_python = next(
-            (root_dir / ".nox").rglob(f"tests*/bin/python{python_version}")
+            (root_dir / ".tox").rglob(
+                f"py{python_version}/bin/python{python_version[:1]}.{python_version[1:]}"
+            )
         ).resolve()
         environ[data_gen_var] = str(data_gen_python)
 
@@ -98,7 +100,7 @@ def _prep_data_gen_env() -> None:
 
 def _setup_common() -> None:
     _check_requirements("asv")
-    _check_requirements("nox")
+    _check_requirements("tox")
 
     _prep_data_gen_env()
 
@@ -140,7 +142,7 @@ def _asv_compare(*commits: str, overnight_mode: bool = False) -> None:
 
 
 class _SubParserGenerator(ABC):
-    """Convenience for holding all the necessary argparse info in 1 place."""
+    """Convenience for holding all the necessary argparse info in one place."""
 
     name: str = NotImplemented
     description: str = NotImplemented
