@@ -13,6 +13,7 @@ from fnmatch import fnmatch
 from glob import glob
 import os
 from pathlib import Path
+import pytrest
 import subprocess
 from typing import List, Tuple
 
@@ -40,7 +41,11 @@ DOCS_DIRS = [
 # variable, so Travis can test for headers in the repo, not the installation.
 IRIS_REPO_DIRPATH = os.environ.get("IRIS_REPO_DIR", IRIS_INSTALL_DIR)
 
+# Check the ".git" folder exists at the repo dir.
+in_git_repo = (Path(IRIS_REPO_DIRPATH) / '.git').is_dir()
 
+
+@pytest.mark.skipif(not in_git_repo, reason="Not in a git repository")
 def test_netcdf4_import():
     """Use of netCDF4 must be via iris.fileformats.netcdf._thread_safe_nc ."""
     # Please avoid including these phrases in any comments/strings throughout
@@ -63,6 +68,7 @@ def test_netcdf4_import():
     assert set(files_including_import) == set(expected)
 
 
+@pytest.mark.skipif(not in_git_repo, reason="Not in a git repository")
 def test_python_versions():
     """Test Python Versions.
 
@@ -181,6 +187,7 @@ def test_categorised_warnings():
     ), "No warnings raised by Iris can be the base UserWarning class."
 
 
+@pytest.mark.skipif(not in_git_repo, reason="Not in a git repository")
 class TestLicenseHeaders(tests.IrisTest):
     @staticmethod
     def whatchanged_parse(whatchanged_output):
@@ -211,18 +218,7 @@ class TestLicenseHeaders(tests.IrisTest):
         """Return a dictionary of all the files under git which maps to
         the datetime of their last modification in the git history.
 
-        .. note::
-
-            This function raises a ValueError if the repo root does
-            not have a ".git" folder. If git is not installed on the system,
-            or cannot be found by subprocess, an IOError may also be raised.
-
         """
-        # Check the ".git" folder exists at the repo dir.
-        if not os.path.isdir(os.path.join(IRIS_REPO_DIRPATH, ".git")):
-            msg = "{} is not a git repository."
-            raise ValueError(msg.format(IRIS_REPO_DIRPATH))
-
         # Call "git whatchanged" to get the details of all the files and when
         # they were last changed.
         output = subprocess.check_output(
