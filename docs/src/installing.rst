@@ -1,7 +1,7 @@
 .. _installing_iris:
 
-Installing Iris
-===============
+Installing
+==========
 
 Iris is available using conda for the following platforms:
 
@@ -14,7 +14,7 @@ Subsystem for Linux).  This is a great option to get started with Iris
 for users and developers.  Be aware that we do not currently test against
 any WSL_ distributions.
 
-.. _WSL: https://docs.microsoft.com/en-us/windows/wsl/install-win10
+.. _WSL: https://learn.microsoft.com/en-us/windows/wsl/install
 
 .. note:: Iris is currently supported and tested against |python_support|
           running on Linux.  We do not currently actively test on other
@@ -119,9 +119,9 @@ Running the Tests
 To ensure your setup is configured correctly you can run the test suite using
 the command::
 
-    python setup.py test
+    pytest
 
-For more information see :ref:`developer_running_tests`.
+For more information see :ref:`test manual env`.
 
 
 Custom Site Configuration
